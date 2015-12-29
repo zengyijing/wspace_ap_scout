@@ -161,25 +161,27 @@ WspaceAP::~WspaceAP()
 }
 
 //modified by Zeng
-/*msg include client_ip_eth_, server_ip_eth_, laptop type, loss rate of all rates*/
 void WspaceAP::SendLossRate(Laptop laptop)
 {
-	LossRatePktHeader header;
-	header.SetHeader(tun_.client_ip_eth_, tun_.server_ip_eth_, laptop);
-	char *pkt = new char[PKT_SIZE];
-	memcpy(pkt, &header, sizeof(header));
-	double loss_rate = 0;
+	char type = STAT_DATA;
+	static uint32 seq = 0;
+	int bs_id = atoi(strrchr(tun_.server_ip_eth_, '.')+1);
+	int client_id = atoi(strrchr(tun_.client_ip_eth_, '.')+1);
+	double throughput = 0;
+	double loss_rate, th;
 	LossMap *loss_map = scout_rate_maker_.GetLossMap(laptop);
 	for (int i = 0; i < mac80211abg_num_rates; i++)
 	{
 		loss_rate = loss_map->GetLossRate(mac80211abg_rate[i]);
-		memcpy(pkt + sizeof(header) + i * sizeof(double), &loss_rate, sizeof(double));
-		printf("%f ", loss_rate);
+		th = mac80211abg_rate[i] * (1 - loss_rate);
+		if(th > throughput)
+			throughput = th;
 	}
-	printf("\n");
-	tun_.Write(Tun::kControl, pkt, sizeof(header) + sizeof(double) * mac80211abg_num_rates);
-	delete[] pkt;
+	BSStatsPkt pkt;
+	pkt.Init(type, seq, bs_id, client_id, throughput);
+	tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 	
+	seq++;
 }
 //end modification
 

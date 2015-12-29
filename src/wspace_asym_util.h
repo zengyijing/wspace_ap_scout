@@ -34,6 +34,10 @@ static const int kMaxRawBufSize = 4000;
 #define CELL_DATA 6
 #define GPS 7
 
+//modified by Zeng
+#define STAT_DATA 8
+//end modification
+
 #define INVALID_SEQ_NUM 0
 #define INVALID_LOSS_RATE (-1)
 
@@ -691,6 +695,27 @@ inline void AckPkt::PushNack(uint32 seq)
 	ack_hdr_.num_nacks_++;
 }
 
+//modified by Zeng
+class BSStatsPkt
+{
+public:
+	BSStatsPkt()
+	{
+		bzero(&type_, sizeof(BSStatsPkt));
+	}
+	~BSStatsPkt() {}
+
+	void Init(char type, uint32 seq, int bs_id, int client_id, double throughput);
+	void ParsePkt(uint32 *seq, int *bs_id, int *client_id, double *throughput) const;
+	
+	char type_; 
+	uint32 seq_;  
+	int bs_id_;
+	int client_id_;
+	double throughput_;
+};
+//end modification
+
 inline uint32 Seq2Ind(uint32 seq)
 {
 	return ((seq-1) % BUF_SIZE);
@@ -900,30 +925,5 @@ public:
 	AckContext raw_ack_context_;  /** Store the feedback packets with lock.*/
 	TxRawBuf raw_pkt_buf_;  			/** Store the raw sequence number for channel estimation. */
 };
-
-//modified by Zeng
-class LossRatePktHeader
-{
-public:
-	LossRatePktHeader()
-	{
-		bzero(client_ip_eth_, sizeof(client_ip_eth_));
-		bzero(server_ip_eth_, sizeof(server_ip_eth_));
-		bzero(&laptop_, sizeof(Laptop));
-	}
-	~LossRatePktHeader() {}
-	void SetHeader(char * client_ip_eth, char * server_ip_eth, Laptop laptop)
-	{
-		memcpy(client_ip_eth_, client_ip_eth, 16);
-		memcpy(server_ip_eth_, server_ip_eth, 16);
-		memcpy(&laptop_, &laptop, sizeof(Laptop));
-	}
-
-	char client_ip_eth_[16];
-	char server_ip_eth_[16];
-	Laptop laptop_;
-};
-
-//end modification
 
 #endif
