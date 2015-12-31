@@ -36,6 +36,8 @@ static const int kMaxRawBufSize = 4000;
 
 //modified by Zeng
 #define STAT_DATA 8
+#define FORWARD_DATA 9
+#define CONTROL_BS 10
 //end modification
 
 #define INVALID_SEQ_NUM 0

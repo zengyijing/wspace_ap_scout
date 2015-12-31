@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
 	printf("PKT_SIZE: %d\n", PKT_SIZE);
 	printf("ACK header size: %d\n", ACK_HEADER_SIZE);
-	const char* opts = "r:R:t:T:i:S:s:C:c:P:p:r:B:d:V:v:m:M:O:f:n:";
+	const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:d:V:v:m:M:O:f:n:";
 	wspace_ap = new WspaceAP(argc, argv, opts);
 	wspace_ap->tun_.CreateConn();
 
@@ -89,6 +89,10 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 				strncpy(tun_.controller_ip_eth_,optarg,16);
 				printf("controller_ip_eth: %s\n", tun_.controller_ip_eth_);
 				break;
+			case 'I':
+				strncpy(tun_.server_ip_tun_,optarg,16);
+				printf("server_ip_tun_: %s\n", tun_.server_ip_tun_);
+				break;
 			//end modification
 			case 's':
 				strncpy(tun_.server_ip_ath_,optarg,16);
@@ -148,7 +152,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 		}
 	}
 	//modified by Zeng
-	assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0]);
+	assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0] && tun_.server_ip_tun_[0]);
 	//end modification
 	assert(coherence_time_ > 0);
 #ifdef RAND_DROP
@@ -165,8 +169,8 @@ void WspaceAP::SendLossRate(Laptop laptop)
 {
 	char type = STAT_DATA;
 	static uint32 seq = 0;
-	int bs_id = atoi(strrchr(tun_.server_ip_eth_, '.')+1);
-	int client_id = atoi(strrchr(tun_.client_ip_eth_, '.')+1);
+	int bs_id = atoi(strrchr(tun_.server_ip_tun_, '.')+1);
+	int client_id = tun_.client_id_;
 	double throughput = 0;
 	double loss_rate, th;
 	LossMap *loss_map = scout_rate_maker_.GetLossMap(laptop);
@@ -947,6 +951,16 @@ void* WspaceAP::TxRcvCell(void* arg)
 		{
 			RcvGPS(buf, nread);
 		}
+		//modified by Zeng
+		else  if (type == FORWARD_DATA)
+		{
+			data_pkt_buf_.EnqueuePkt(nread - 1, (uint8*)buf + 1);
+		}
+		else  if (type == CONTROL_BS)
+		{
+			tun_.Write(Tun::kTun, buf + 1, nread - 1);
+		}
+		//end modification
 		else
 		{
 			Perror("TxRcvCell: Invalid pkt type[%d]\n", type);

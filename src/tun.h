@@ -43,6 +43,7 @@ public:
 		broadcast_ip_ath_[0] = '\0';
 		//modified by Zeng
 		client_ip_eth_[0] = '\0';
+		server_ip_tun_[0] = '\0';
 		controller_ip_eth_[0] = '\0';
 		//end modification
 	}
@@ -79,8 +80,10 @@ public:
 
 	//modified by Zeng
 	char client_ip_eth_[16];
+	char server_ip_tun_[16];
 	char controller_ip_eth_[16];
 	struct sockaddr_in controller_addr_eth_;
+	int client_id_;
 	//end modification
 };
 

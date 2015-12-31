@@ -109,8 +109,12 @@ int Tun::Accept(int listen_fd, sockaddr_in *client_addr)
 	char buffer[PKT_SIZE];
 	if (recvfrom(listen_fd, buffer, PKT_SIZE, 0, (struct sockaddr*)client_addr, (socklen_t*)&addr_len) == -1) 
 		perror("Server recvfrom fail!");
-	if (strcmp(buffer, "connect")) 
+	//modified by Zeng
+	if (strncmp(buffer, "connect", strlen("connect"))) 
 		perror("Invalid connection message from client!");
+	else
+		client_id_ = atoi(strrchr(buffer, '.') + 1);
+	//end modification
 	snprintf(buffer, PKT_SIZE, "accept\0");
 	// Server reply
 	if (sendto(listen_fd, buffer, strlen(buffer)+1, 0, (struct sockaddr*)client_addr, (socklen_t)addr_len) == -1) 
