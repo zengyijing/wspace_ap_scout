@@ -194,11 +194,40 @@ void* WspaceAP::TxReadTun(void* arg)
 	// Blocking reading tun at here
 	uint16 len = 0;
 	char *pkt = new char[PKT_SIZE];
+
+	int dest_id = 0;
+	char ip_tun[16] = {0};
+	struct in_addr addr;
+
 	while (1)
 	{
-		len = tun_.Read(Tun::kTun, pkt, kTunMTU);
-		data_pkt_buf_.EnqueuePkt(len, (uint8*)pkt);
-	}
+
+		len = tun_.Read(Tun::kTun, pkt + 1, kTunMTU);
+
+		memcpy(&addr.s_addr, pkt + 1 + 16, sizeof(long));//suppose it's a IP packet and get the destination inner IP address
+		strncpy(ip_tun, inet_ntoa(addr), 16);
+		dest_id = atoi(strrchr(ip_tun,'.') + 1);
+		printf("dest_id:%d\n", dest_id);
+		if(dest_id == 1)	//to controller
+		{
+			*pkt = CONTROL_BS;
+			tun_.Write(Tun::kControl, pkt, len + 1);
+		}
+		else if(dest_id < 128)	//currently bs_id in 2 ~ 127
+		{
+			//TODO: forward to other bs
+			printf("To other bs...\n");
+		}
+		else			//client_id 128 ~ 254
+		{
+			data_pkt_buf_.EnqueuePkt(len, (uint8*)pkt + 1);
+			printf("To client...\n");
+		}
+
+/*		
+		len = tun_.Read(Tun::kTun, pkt + 1, kTunMTU);
+		data_pkt_buf_.EnqueuePkt(len, (uint8*)pkt + 1);
+*/	}
 	delete[] pkt;
 	return (void*)NULL;
 }
