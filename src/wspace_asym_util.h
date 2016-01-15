@@ -697,7 +697,7 @@ inline void AckPkt::PushNack(uint32 seq)
 	ack_hdr_.num_nacks_++;
 }
 
-//modified by Zeng
+// @yijing: Please add a radio id.
 class BSStatsPkt
 {
 public:
@@ -714,9 +714,9 @@ public:
 	uint32 seq_;  
 	int bs_id_;
 	int client_id_;
+	// int radio_id_;
 	double throughput_;
 };
-//end modification
 
 inline uint32 Seq2Ind(uint32 seq)
 {

@@ -84,16 +84,20 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 				strncpy(tun_.server_ip_eth_,optarg,16);
 				printf("server_ip_eth: %s\n", tun_.server_ip_eth_);
 				break;
-			//modified by Zeng
+			// @yijing: remove "modified by Zeng" in all the source code. 
+			// These changes will be shown in github:-).
 			case 'C':
 				strncpy(tun_.controller_ip_eth_,optarg,16);
 				printf("controller_ip_eth: %s\n", tun_.controller_ip_eth_);
 				break;
 			case 'I':
+				// @yijing: Parse the server id instead of the address. 
+				// Store it as the data member of WspaceAP so you don't
+				// need to parse the id each time you send stats.
+				// server_ip_tun_ is not needed in tun anymore.
 				strncpy(tun_.server_ip_tun_,optarg,16);
 				printf("server_ip_tun_: %s\n", tun_.server_ip_tun_);
 				break;
-			//end modification
 			case 's':
 				strncpy(tun_.server_ip_ath_,optarg,16);
 				printf("server_ip_ath: %s\n", tun_.server_ip_ath_);
@@ -182,9 +186,9 @@ void WspaceAP::SendLossRate(Laptop laptop)
 			throughput = th;
 	}
 	BSStatsPkt pkt;
+	// @yijing: Include laptop as the radio_id to the pkt.
 	pkt.Init(type, seq, bs_id, client_id, throughput);
 	tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
-	
 	seq++;
 }
 //end modification
@@ -208,6 +212,12 @@ void* WspaceAP::TxReadTun(void* arg)
 		strncpy(ip_tun, inet_ntoa(addr), 16);
 		dest_id = atoi(strrchr(ip_tun,'.') + 1);
 		printf("dest_id:%d\n", dest_id);
+		// @yijing: What is the following logic for? I don't think there will be any traffic sent into the 
+		// tun at the BS; all the traffic is forwarded through the tun at the controller right? 
+		// Also, one base station shouldn't forward packets to the other bs as all the packets are forwarded 
+		// from controller. 
+		// So I think we should remove the new logic and keep the original one just for testing a pair of bs - client without
+		// the controller. 
 		if(dest_id == 1)	//to controller
 		{
 			*pkt = CONTROL_BS;
@@ -962,6 +972,7 @@ void* WspaceAP::TxRcvCell(void* arg)
 		char type = *buf;
 		if (type == CELL_DATA)
 		{
+			// @yijing: Forward uplink packet to the controller instead of writing to tun.
 			tun_.Write(Tun::kTun, &(buf[CELL_DATA_HEADER_SIZE]), nread-CELL_DATA_HEADER_SIZE);
 		}
 		else if (type == DATA_ACK)
@@ -980,16 +991,15 @@ void* WspaceAP::TxRcvCell(void* arg)
 		{
 			RcvGPS(buf, nread);
 		}
-		//modified by Zeng
-		else  if (type == FORWARD_DATA)
+		else if (type == FORWARD_DATA)
 		{
 			data_pkt_buf_.EnqueuePkt(nread - 1, (uint8*)buf + 1);
 		}
-		else  if (type == CONTROL_BS)
+		// @yijing: What is this case for? 
+		else if (type == CONTROL_BS)
 		{
 			tun_.Write(Tun::kTun, buf + 1, nread - 1);
 		}
-		//end modification
 		else
 		{
 			Perror("TxRcvCell: Invalid pkt type[%d]\n", type);

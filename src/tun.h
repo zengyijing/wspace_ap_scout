@@ -78,13 +78,13 @@ public:
 	uint16_t port_eth_, port_ath_;
 	int sock_fd_eth_, sock_fd_ath_;    	 // Sockets to handle request at the server side
 
-	//modified by Zeng
+	// @yijing: client_id and client_ip need to be an array to support multiple clients, similar to
+	// what is implemented in the controller.
+	int client_id_;
 	char client_ip_eth_[16];
 	char server_ip_tun_[16];
 	char controller_ip_eth_[16];
 	struct sockaddr_in controller_addr_eth_;
-	int client_id_;
-	//end modification
 };
 
 int cread(int fd, char *buf, int n);
