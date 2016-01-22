@@ -515,9 +515,10 @@ class ControllerToClientHeader {
   }
   ~ControllerToClientHeader() {}
 
-  void SetClientID(int id) { client_id_ = id; }
+  void set_client_id (int id) { client_id_ = id; }
+  int client_id() const { return client_id_; }
+  char type() const { return type_; }
 
-// Data
  private:
   char type_;
   int client_id_;

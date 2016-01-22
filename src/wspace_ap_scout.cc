@@ -176,21 +176,19 @@ WspaceAP::~WspaceAP() {
 }
 
 void WspaceAP::ParseIP(const vector<int> &ids, map<int, string> &ip_table) {
-  if (ids.size() > 0) {
-    vector<int>::const_iterator it = ids.begin();
-    string addr;
-    stringstream ss(optarg);
-    while(getline(ss, addr, ',')) {
-      if (it == ids.end())
-        Perror("Too many input addresses\n");
-      int id = *it;
-      ip_table[id] = addr;
-      ++it;
-    }
-  } else {
-    Perror("Need to indicate ids first!\n");
+  if (ids.empty()) {
+    Perror("WspaceAP::ParseIP: Need to indicate ids first!\n");
   }
-
+  vector<int>::const_iterator it = ids.begin();
+  string addr;
+  stringstream ss(optarg);
+  while(getline(ss, addr, ',')) {
+    if (it == ids.end())
+      Perror("WspaceAP::ParseIP: Too many input addresses\n");
+    int id = *it;
+    ip_table[id] = addr;
+    ++it;
+  }
 }
 
 void WspaceAP::SendLossRate(const Laptop &laptop, const int &client_id) {
@@ -773,7 +771,7 @@ void WspaceAP::InsertFeedback(Laptop laptop, const vector<RawPktSendStatus> &sta
   scout_rate_maker_.CalcLossRates(laptop, start, end);  /** Calculate loss for delayed feedback. */
 
 
-  SendLossRate(laptop, client_ids_.front()); // TODO: currently hard code client id.
+  SendLossRate(laptop, client_ids_.front()); // TODO: Enable dynamically assignment of client_id.
 
 }
 
