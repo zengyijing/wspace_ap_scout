@@ -514,9 +514,9 @@ class ControllerToClientHeader {
   ControllerToClientHeader(): type_(CONTROLLER_TO_CLIENT) {}
   ~ControllerToClientHeader() {}
 
-  void set_client_id(int id) { client_id_ = id; }
-  int client_id() { return client_id_; }
-  char get_type() { return type_; }
+  void set_client_id (int id) { client_id_ = id; }
+  int client_id() const { return client_id_; }
+  char type() const { return type_; }
 
  private:
   char type_;
