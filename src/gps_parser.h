@@ -8,44 +8,42 @@
 #include <iostream>
 #include "pthread_wrapper.h"
 
-struct Location
-{
-	double latitude;
-	double longitude;
+struct Location {
+  double latitude;
+  double longitude;
 };
 
 using namespace std;
 
-class GPSParser
-{
-public:
-	GPSParser();
-	~GPSParser();
+class GPSParser {
+ public:
+  GPSParser();
+  ~GPSParser();
 
-	bool ParseLine(const string &line);
+  bool ParseLine(const string &line);
 
-	double time() const { return time_; }
+  double time() const { return time_; }
 
-	double speed() const { return speed_; }
+  double speed() const { return speed_; }
 
-	const Location& location() const { return location_; }
+  const Location& location() const { return location_; }
 
-	void Print();
+  void Print();
 
-private:
-	void* ParseGPSReadings(void*);  
+ private:
+  void* ParseGPSReadings(void*);  
 
-	void SplitLine(const string &line, const string &separator=" ,\t");
+  void SplitLine(const string &line, const string &separator=" ,\t");
 
-	bool IsValidLine();
+  bool IsValidLine();
 
-	bool GetValue(const string &phrase, const string &key, double *val);
+  bool GetValue(const string &phrase, const string &key, double *val);
 
-	string kStartPhrase;
-	double time_;
-	Location location_;
-	double speed_;
-	vector<string> phrases_;
+  string kStartPhrase;
+  double time_;
+  Location location_;
+  double speed_;
+  vector<string> phrases_;
 };
 
 #endif

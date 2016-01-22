@@ -18,73 +18,68 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <assert.h>
-
+#include <map>
+#include <string>
+using namespace std;
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define PKT_SIZE 2000   
 #define PORT_ETH 55554
 #define PORT_ATH 55555
 
-class Tun
-{
-public:
-	enum IOType
-	{
-		kTun=1,
-		kWspace, 
-		kCellular, 
-		kControl,
-	};
+class Tun {
+ public:
+  enum IOType {
+    kTun=1,
+    kWspace, 
+    kCellular, 
+    kControl,
+  };
 
-	Tun(): tun_type_(IFF_TUN), port_eth_(PORT_ETH), port_ath_(PORT_ATH)
-	{
-		if_name_[0] = '\0';
-		server_ip_eth_[0] = '\0';
-		server_ip_ath_[0] = '\0';
-		broadcast_ip_ath_[0] = '\0';
-		//modified by Zeng
-		client_ip_eth_[0] = '\0';
-		server_ip_tun_[0] = '\0';
-		controller_ip_eth_[0] = '\0';
-		//end modification
-	}
+  Tun(): tun_type_(IFF_TUN), port_eth_(PORT_ETH), port_ath_(PORT_ATH) {
+    if_name_[0] = '\0';
+    server_ip_eth_[0] = '\0';
+    server_ip_ath_[0] = '\0';
+    broadcast_ip_ath_[0] = '\0';
 
-	~Tun()
-	{
-		close(tun_fd_);
-	 	close(sock_fd_eth_);
-		close(sock_fd_ath_);
-	}
-	
-	void CreateConn();
-	void InitSock();
-	void ObtainClientAddr();
-	int Accept(int listen_fd, sockaddr_in *client_addr);
-	int AllocTun(char *dev, int flags);
-	int CreateSock();
-	void BindSocket(int fd, sockaddr_in *addr);
-	void CreateAddr(const char *ip, int port, sockaddr_in *addr);
-	uint16_t Read(const IOType &type, char *buf, uint16_t len);
-	uint16_t Write(const IOType &type, char *buf, uint16_t len);
+    server_id_ = 0;
+    controller_ip_eth_[0] = '\0';
+
+  }
+
+  ~Tun() {
+    close(tun_fd_);
+    close(sock_fd_eth_);
+    close(sock_fd_ath_);
+  }
+  
+  void CreateConn();
+  void InitSock();
+  void ObtainClientAddr();
+  //int Accept(int listen_fd, sockaddr_in *client_addr);
+  int AllocTun(char *dev, int flags);
+  int CreateSock();
+  void BindSocket(int fd, sockaddr_in *addr);
+  void CreateAddr(const char *ip, int port, sockaddr_in *addr);
+  uint16_t Read(const IOType &type, char *buf, uint16_t len);
+  uint16_t Write(const IOType &type, char *buf, uint16_t len);
 
 // Data members:
-	int tun_fd_;
-	int tun_type_;    		// TUN or TAP
-	char if_name_[IFNAMSIZ];
-	char server_ip_eth_[16];
-	char server_ip_ath_[16];
-	char broadcast_ip_ath_[16];
-	struct sockaddr_in server_addr_eth_, server_addr_ath_, 
-	client_addr_eth_, client_addr_ath_; 
-	uint16_t port_eth_, port_ath_;
-	int sock_fd_eth_, sock_fd_ath_;    	 // Sockets to handle request at the server side
+  int tun_fd_;
+  int tun_type_;        // TUN or TAP
+  char if_name_[IFNAMSIZ];
+  char server_ip_eth_[16];
+  char server_ip_ath_[16];
+  char broadcast_ip_ath_[16];
+  struct sockaddr_in server_addr_eth_, server_addr_ath_, 
+  client_addr_eth_, client_addr_ath_; 
+  uint16_t port_eth_, port_ath_;
+  int sock_fd_eth_, sock_fd_ath_;       // Sockets to handle request at the server side
 
-	// @yijing: client_id and client_ip need to be an array to support multiple clients, similar to
-	// what is implemented in the controller.
-	int client_id_;
-	char client_ip_eth_[16];
-	char server_ip_tun_[16];
-	char controller_ip_eth_[16];
-	struct sockaddr_in controller_addr_eth_;
+  std::map<int, string> client_ip_tbl_; // <client_id, client_ip_eth_>.
+
+  int server_id_;
+  char controller_ip_eth_[16];
+  struct sockaddr_in controller_addr_eth_;
 };
 
 int cread(int fd, char *buf, int n);
