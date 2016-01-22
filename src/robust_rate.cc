@@ -73,8 +73,8 @@ int32_t RobustRate::ApplyRate(int32_t& case_num) {
 
   if(cur_rate_pos!=new_pos) {
     cur_rate_pos = new_pos;
-    //PrintRateTable(); 
-    //cout<<"Update Rate to:"<<rraa_rate_table[new_pos].rate/10.0<<"Mbps"<<endl;
+    PrintRateTable(); 
+    cout<<"Update Rate to:"<<rraa_rate_table[new_pos].rate/10.0<<"Mbps"<<endl;
   }
   /**
   if(new_pos == 0) {
