@@ -13,7 +13,7 @@ static const uint16 kTunMTU = PKT_SIZE - ATH_CODE_HEADER_SIZE - MAX_BATCH_SIZE *
 int main(int argc, char **argv) {
   printf("PKT_SIZE: %d\n", PKT_SIZE);
   printf("ACK header size: %d\n", ACK_HEADER_SIZE);
-  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:d:V:v:m:M:O:f:n:";
+  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:";
   wspace_ap = new WspaceAP(argc, argv, opts);
   wspace_ap->tun_.CreateConn();
 
@@ -51,8 +51,6 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 #ifdef RAND_DROP
   drop_prob_ = 0;
 #endif
-  vector<int> client_ids;
-
   while ((option = getopt(argc, argv, optstring)) > 0) {
     switch(option) {
       case 'R':  /** Number of retransmission. */
@@ -81,14 +79,13 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         strncpy(tun_.server_ip_eth_,optarg,16);
         printf("server_ip_eth: %s\n", tun_.server_ip_eth_);
         break;
-
       case 'C':
         strncpy(tun_.controller_ip_eth_,optarg,16);
         printf("controller_ip_eth: %s\n", tun_.controller_ip_eth_);
         break;
       case 'I':
         tun_.server_id_ = atoi(optarg);
-        printf("server_id_: %s\n", tun_.server_id_);
+        printf("server_id_: %d\n", tun_.server_id_);
         break;
       case 's':
         strncpy(tun_.server_ip_ath_,optarg,16);
@@ -149,7 +146,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         while(getline(ss, addr, ',')) {
           if(atoi(addr.c_str()) == 1)
               Perror("id 1 is reserved by controller\n");
-          client_ids.push_back(atoi(addr.c_str()));
+          client_ids_.push_back(atoi(addr.c_str()));
         }
         break;
       }
