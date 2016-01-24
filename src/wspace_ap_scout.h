@@ -96,6 +96,7 @@ class WspaceAP {
 #endif
 
   vector<int> client_ids_;
+  int server_id_;
 
  private:
   /**

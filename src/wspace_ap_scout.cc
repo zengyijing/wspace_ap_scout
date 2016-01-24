@@ -84,8 +84,8 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         printf("controller_ip_eth: %s\n", tun_.controller_ip_eth_);
         break;
       case 'I':
-        tun_.server_id_ = atoi(optarg);
-        printf("server_id_: %d\n", tun_.server_id_);
+        server_id_ = atoi(optarg);
+        printf("server_id_: %d\n", server_id_);
         break;
       case 's':
         strncpy(tun_.server_ip_ath_,optarg,16);
@@ -159,7 +159,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
     }
   }
 
-  assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0] && tun_.server_id_ && tun_.client_ip_tbl_.size());
+  assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0] && server_id_ && tun_.client_ip_tbl_.size());
   for (map<int, string>::iterator it = tun_.client_ip_tbl_.begin(); it != tun_.client_ip_tbl_.end(); ++it) {
     assert(strlen(it->second.c_str()));
   }
@@ -191,7 +191,7 @@ void WspaceAP::ParseIP(const vector<int> &ids, map<int, string> &ip_table) {
 void WspaceAP::SendLossRate(const Laptop &laptop, const int &client_id) {
   char type = BS_STATS;
   static uint32 seq = 0;
-  int bs_id = tun_.server_id_;
+  int bs_id = server_id_;
   double throughput = 0;
   double loss_rate, th;
   LossMap *loss_map = scout_rate_maker_.GetLossMap(laptop);
