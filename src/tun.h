@@ -40,8 +40,6 @@ class Tun {
     server_ip_eth_[0] = '\0';
     server_ip_ath_[0] = '\0';
     broadcast_ip_ath_[0] = '\0';
-
-    server_id_ = 0;
     controller_ip_eth_[0] = '\0';
 
   }
@@ -76,8 +74,6 @@ class Tun {
   int sock_fd_eth_, sock_fd_ath_;       // Sockets to handle request at the server side
 
   std::map<int, string> client_ip_tbl_; // <client_id, client_ip_eth_>.
-
-  int server_id_;
   char controller_ip_eth_[16];
   struct sockaddr_in controller_addr_eth_;
 };
