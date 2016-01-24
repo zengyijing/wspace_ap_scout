@@ -718,8 +718,10 @@ void* WspaceAP::TxHandleDataAck(void *) {
   char type;
   bool is_ack_available=false; 
   bool dup_ack_timeout = false;
+  int client_id = 0;
+  int radio_id = 0; // not useful for data ack.
   while (1) {
-    is_ack_available = TxHandleAck(data_ack_context_, &type, &ack_seq, &num_nacks, &end_seq, nack_seq_arr);
+    is_ack_available = TxHandleAck(data_ack_context_, &type, &ack_seq, &num_nacks, &end_seq, &client_id, &radio_id, nack_seq_arr);
     if (is_ack_available) {
       dup_ack_timeout = HandleAck(type, ack_seq, num_nacks, end_seq, nack_seq_arr);
       if (dup_ack_timeout) { 
@@ -791,8 +793,10 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
   FeedbackHandler *feedback_handler = GetFeedbackHandler(laptop); 
 
   while (1) {
+    int client_id = 0;
+    int radio_id = 0;
     bool is_ack_available = TxHandleAck(feedback_handler->raw_ack_context_, &type, &ack_seq, 
-              &num_nacks, &end_seq, nack_seq_arr, &num_pkts);
+              &num_nacks, &end_seq, &client_id, &radio_id, nack_seq_arr, &num_pkts);
     assert(is_ack_available);  /** No timeout when handling raw ACKs. */
     PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_seq_arr, num_pkts);
     if (ack_seq >= expect_ack_seq) {
@@ -807,7 +811,7 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
 }
 
 bool WspaceAP::TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq, uint16 *num_nacks,
-        uint32 *end_seq, uint32 *nack_seq_arr, uint16 *num_pkts) {
+        uint32 *end_seq, int* client_id, int* radio_id, uint32 *nack_seq_arr, uint16 *num_pkts) {
   char pkt_type;
   ack_context.Lock();
   while (!ack_context.ack_available()) {
@@ -826,7 +830,8 @@ bool WspaceAP::TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq,
   bool ack_available = ack_context.ack_available();
   if (ack_context.ack_available()) {
     ack_context.set_ack_available(false);
-    (ack_context.pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, nack_seq_arr, num_pkts);  
+    (ack_context.pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, client_id, radio_id, nack_seq_arr, num_pkts);
+    printf("TxHandleAck: pkt_type:%d, client_id:%d, radio_id:%d\n", (int)pkt_type, *client_id, *radio_id);
     assert(pkt_type == ack_context.type());
     *type = pkt_type;
   }

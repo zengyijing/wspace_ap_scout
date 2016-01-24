@@ -104,7 +104,7 @@ class WspaceAP {
    * @return true - ACK is available, false - timeout for DATA_ACK.
    */
   bool TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq, 
-    uint16 *num_nacks, uint32 *end_seq, uint32 *nack_seq_arr, uint16 *num_pkts = NULL); 
+    uint16 *num_nacks, uint32 *end_seq, int* client_id, int* radio_id, uint32 *nack_seq_arr, uint16 *num_pkts = NULL); 
   
   /**
    * Store the received packet into the ack_context.
