@@ -191,7 +191,6 @@ void WspaceAP::ParseIP(const vector<int> &ids, map<int, string> &ip_table) {
 void WspaceAP::SendLossRate(const Laptop &laptop, const int &client_id) {
   char type = BS_STATS;
   static uint32 seq = 0;
-  int bs_id = server_id_;
   double throughput = 0;
   double loss_rate, th;
   LossMap *loss_map = scout_rate_maker_.GetLossMap(laptop);
@@ -202,7 +201,7 @@ void WspaceAP::SendLossRate(const Laptop &laptop, const int &client_id) {
       throughput = th;
   }
   BSStatsPkt pkt;
-  pkt.Init(++seq, bs_id, client_id, (int)laptop, throughput);
+  pkt.Init(++seq, server_id_, client_id, (int)laptop, throughput);
   tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 }
 
