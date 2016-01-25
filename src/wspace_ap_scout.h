@@ -92,8 +92,7 @@ class WspaceAP {
   int batch_time_out_;
   int rtt_;   // in ms
   TxDataBuf data_pkt_buf_;  /** Store the data sequence number and data packets for retransmission.*/
-  pthread_t p_tx_read_tun_, p_tx_send_ath_, p_tx_rcv_cell_, 
-  p_tx_handle_data_ack_, p_tx_handle_front_raw_ack_, p_tx_handle_back_raw_ack_;
+  pthread_t p_tx_read_tun_, p_tx_rcv_cell_;
   Tun tun_;    // tun interface
   uint32 coherence_time_;  // in us
   int contiguous_time_out_;
