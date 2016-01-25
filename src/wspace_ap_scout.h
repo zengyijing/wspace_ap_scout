@@ -12,6 +12,18 @@
 static const int kMaxDupAckCnt = 10;
 //static const int kMaxContiguousTimeOut = 5;
 
+class ClientContext {
+ private:
+  TxDataBuf data_pkt_buf_;
+  CodeInfo encoder_;
+  ScoutRateAdaptation scout_rate_maker_;
+  AckContext data_ack_context_;
+  FeedbackHandler front_handler_, back_handler_;
+  GPSLogger gps_logger_;
+  pthread_t  p_tx_send_ath_, p_tx_handle_data_ack_, 
+             p_tx_handle_front_raw_ack_, p_tx_handle_back_raw_ack_;
+};
+
 class WspaceAP {
  public:
   WspaceAP(int argc, char *argv[], const char *optstring);
