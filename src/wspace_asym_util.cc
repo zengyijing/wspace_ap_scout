@@ -337,7 +337,7 @@ void AthDataHeader::ParseAthHdr(uint32 *seq_num, uint16 *len, char *rate) {
 
 /** FEC vdm */
 void AthCodeHeader::SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq, char type, 
-        int ind, int k, int n, const uint16 *len_arr) {
+        int ind, int k, int n, const uint16 *len_arr, int bs_id) {
   assert(raw_seq > 0 && batch_id > 0 && start_seq > 0 && ind >= 0 && ind < n && k >= 0 && n >= 0 && k <= n);
   SetRawSeq(raw_seq);
   batch_id_ = batch_id;
@@ -346,16 +346,18 @@ void AthCodeHeader::SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq,
   ind_ = ind;
   k_ = k;
   n_ = n;
+  bs_id_ = bs_id;
   memcpy((uint8*)this + ATH_CODE_HEADER_SIZE, len_arr, k_ * sizeof(uint16));
 }
 
-void AthCodeHeader::ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, int *k, int *n) const {
+void AthCodeHeader::ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, int *k, int *n, int *bs_id) const {
   assert(batch_id_ > 0 && start_seq_ > 0 && ind_ < n_ && k_ <= n_ && k_ > 0 && k_ <= MAX_BATCH_SIZE);
   *batch_id = batch_id_;
   *start_seq = start_seq_;
   *ind = ind_;
   *k = k_;
   *n = n_;
+  *bs_id = bs_id_;
 }
 
 /** GPS Header.*/
