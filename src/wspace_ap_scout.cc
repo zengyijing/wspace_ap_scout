@@ -226,7 +226,7 @@ void WspaceAP::SendLossRate(int client_id) {
   for (int i = 0; i < mac80211abg_num_rates; i++) {
     loss_rate = loss_map->GetLossRate(mac80211abg_rate[i]);
     th = mac80211abg_rate[i] * (1 - loss_rate);
-    printf("mac80211abg_rate[%d], loss_rate:%d\n", mac80211abg_rate[i], loss_rate);
+    //printf("mac80211abg_rate[%d], loss_rate:%d\n", mac80211abg_rate[i], loss_rate);
     if(th > throughput)
       throughput = th;
   }
@@ -746,7 +746,7 @@ void* WspaceAP::TxHandleDataAck(void *arg) {
   bool dup_ack_timeout = false;
   int radio_id = 0; // not useful for data ack.
   while (1) {
-    is_ack_available = TxHandleAck(client_context_tbl_[*client_id]->data_ack_context(), &type, &ack_seq, &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr);
+    is_ack_available = TxHandleAck(*(client_context_tbl_[*client_id]->data_ack_context()), &type, &ack_seq, &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr);
     if (is_ack_available) {
       dup_ack_timeout = HandleAck(type, ack_seq, num_nacks, end_seq, nack_seq_arr, *client_id);
       if (dup_ack_timeout) { 
@@ -776,7 +776,7 @@ void WspaceAP::InsertFeedback(const vector<RawPktSendStatus> &status_vec, int cl
   /** Ensure close range lookup [start, end] for delayed packets.*/
   MonotonicTimer start = status_vec.front().send_time_ - MonotonicTimer(0, 1);
   MonotonicTimer end = status_vec.back().send_time_ + MonotonicTimer(0, 1);
-  client_context_tbl_[client_id]->scout_rate_maker()->CalcLossRates(start, end);  /** Calculate loss for delayed feedback. */
+  client_context_tbl_[client_id]->scout_rate_maker()->CalcLossRates(ScoutRateAdaptation::kBack, start, end);  /** Calculate loss for delayed feedback. */
 
   SendLossRate(client_id);
 
@@ -794,7 +794,7 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
   int radio_id = 0;
 
   while (1) {
-    bool is_ack_available = TxHandleAck(&(client_context_tbl_[*client_id]->feedback_handler()->raw_ack_context_), &type, &ack_seq, 
+    bool is_ack_available = TxHandleAck(client_context_tbl_[*client_id]->feedback_handler()->raw_ack_context_, &type, &ack_seq, 
               &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr, &num_pkts);
     assert(is_ack_available);  /** No timeout when handling raw ACKs. */
     PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_seq_arr, num_pkts);
@@ -809,35 +809,35 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
   delete[] nack_seq_arr;
 }
 
-bool WspaceAP::TxHandleAck(AckContext *ack_context, char *type, uint32 *ack_seq, uint16 *num_nacks,
+bool WspaceAP::TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq, uint16 *num_nacks,
         uint32 *end_seq, int client_id, int* radio_id, uint32 *nack_seq_arr, uint16 *num_pkts) {
   int client = 0;
   char pkt_type;
-  ack_context->Lock();
-  while (!ack_context->ack_available()) {
-    if (ack_context->type() == DATA_ACK) {
-      int err = ack_context->WaitFill(ack_time_out_);
+  ack_context.Lock();
+  while (!ack_context.ack_available()) {
+    if (ack_context.type() == DATA_ACK) {
+      int err = ack_context.WaitFill(ack_time_out_);
       if (err == ETIMEDOUT)
         break;
     }
-    else if (ack_context->type() == RAW_ACK) {
-      ack_context->WaitFill();  /** No need to timeout to track raw packets. */
+    else if (ack_context.type() == RAW_ACK) {
+      ack_context.WaitFill();  /** No need to timeout to track raw packets. */
     }
     else {
-      Perror("TxHandleAck invalid ACK type: %d\n", ack_context->type());
+      Perror("TxHandleAck invalid ACK type: %d\n", ack_context.type());
     }
   }
-  bool ack_available = ack_context->ack_available();
-  if (ack_context->ack_available()) {
-    ack_context->set_ack_available(false);
-    (ack_context->pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, &client, radio_id, nack_seq_arr, num_pkts);
+  bool ack_available = ack_context.ack_available();
+  if (ack_context.ack_available()) {
+    ack_context.set_ack_available(false);
+    (ack_context.pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, &client, radio_id, nack_seq_arr, num_pkts);
     assert(client == client_id);
     printf("TxHandleAck: pkt_type:%d, client_id:%d, radio_id:%d\n", (int)pkt_type, client_id, *radio_id);
-    assert(pkt_type == ack_context->type());
+    assert(pkt_type == ack_context.type());
     *type = pkt_type;
   }
-  ack_context->SignalEmpty();
-  ack_context->UnLock();
+  ack_context.SignalEmpty();
+  ack_context.UnLock();
   return ack_available;
 }
 
@@ -852,11 +852,11 @@ void* WspaceAP::TxRcvCell(void* arg) {
     }
     else if (type == DATA_ACK) {
       AckHeader *hdr = (AckHeader*)buf;
-      RcvAck(client_context_tbl_[hdr->client_id()]->data_ack_context(), buf, nread);
+      RcvAck(*(client_context_tbl_[hdr->client_id()]->data_ack_context()), buf, nread);
     }
     else if (type == RAW_ACK) {
       AckHeader *hdr = (AckHeader*)buf;
-      RcvAck(&(client_context_tbl_[hdr->client_id()]->feedback_handler()->raw_ack_context_), buf, nread);
+      RcvAck(client_context_tbl_[hdr->client_id()]->feedback_handler()->raw_ack_context_, buf, nread);
     }
     else if (type == GPS) {
       GPSHeader *hdr = (GPSHeader*)buf;
@@ -873,18 +873,18 @@ void* WspaceAP::TxRcvCell(void* arg) {
   delete[] buf;
 }
 
-void WspaceAP::RcvAck(AckContext *ack_context, const char* buf, uint16 len) {
-  ack_context->Lock();
-  while (ack_context->ack_available()) {
+void WspaceAP::RcvAck(AckContext &ack_context, const char* buf, uint16 len) {
+  ack_context.Lock();
+  while (ack_context.ack_available()) {
     /** Last ack has not been processed yet. */
     printf("TxRcvCell ACK overlaps!\n");
-    ack_context->SignalFill();
-    ack_context->WaitEmpty();
+    ack_context.SignalFill();
+    ack_context.WaitEmpty();
   }
-  ack_context->set_ack_available(true);
-  memcpy(ack_context->pkt(), buf, len);
-  ack_context->SignalFill();
-  ack_context->UnLock();
+  ack_context.set_ack_available(true);
+  memcpy(ack_context.pkt(), buf, len);
+  ack_context.SignalFill();
+  ack_context.UnLock();
 }
 
 void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
