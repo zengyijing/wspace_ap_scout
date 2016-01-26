@@ -63,8 +63,6 @@ class LossMap {
 class ScoutRateAdaptation {
  public:
 
-
-  /*
   enum Laptop {
     kInvalid = 0, 
     kFront = 1,
@@ -72,8 +70,6 @@ class ScoutRateAdaptation {
     kFrontScout = 3,
     kAfterCombine = 4,
   };
-  */
-
 
   enum CombineMode {
     kFrontOnly = 0,

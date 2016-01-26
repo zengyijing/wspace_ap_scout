@@ -29,8 +29,7 @@ static const int kMaxRawBufSize = 4000;
 #define ATH_DATA 1
 #define ATH_CODE 2
 #define DATA_ACK 3
-#define RAW_FRONT_ACK 4
-#define RAW_BACK_ACK 5
+#define RAW_ACK 5
 #define CELL_DATA 6
 #define GPS 7
 #define BS_STATS 8
@@ -76,16 +75,6 @@ enum Status {
   kOccupiedRetrans = 3,      /** stores a packet should be retransmited. */
   kOccupiedOutbound = 4,     /** a packet transmitted but does not got ack. */
 };
-
-
-enum Laptop {
-  kInvalid = 0, 
-  kFront = 1,
-  kBack = 2,
-  kFrontScout = 3,
-  kAfterCombine = 4,
-};
-
   
 typedef struct {
   uint32  seq_num;
@@ -548,6 +537,7 @@ class AckHeader {
   void set_num_pkts(uint16 num_pkts) { num_pkts_ = num_pkts; }
 
   void set_ids(int client_id, int radio_id) { client_id_ = client_id; radio_id_ = radio_id; }
+  int client_id() const { return client_id_; }
 // Data
   char type_;
   uint32 ack_seq_;          // Record the sequence number of ack 
@@ -564,10 +554,10 @@ class GPSHeader {
   GPSHeader() : type_(GPS), seq_(0), speed_(-1.0) {}
   ~GPSHeader() {}
 
-  void Init(double time, double latitude, double longitude, double speed);
+  void Init(double time, double latitude, double longitude, double speed, int client_id);
 
   uint32 seq() const { assert(seq_ > 0); return seq_; }
-
+  int client_id() const { return client_id_; }
   double speed() const { assert(speed_ >= 0); return speed_; }
 
  private: 
@@ -579,6 +569,7 @@ class GPSHeader {
   double latitude_;
   double longitude_;
   double speed_; 
+  int client_id_;
 };
 
 class GPSLogger {

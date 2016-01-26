@@ -25,7 +25,7 @@ using namespace std;
 #define PKT_SIZE 2000   
 #define PORT_ETH 55554
 #define PORT_ATH 55555
-
+#define MAX_RADIO 3
 class Tun {
  public:
   enum IOType {
@@ -50,7 +50,7 @@ class Tun {
     close(sock_fd_ath_);
   }
   
-  void CreateConn();
+  void Init();
   void InitSock();
   void ObtainClientAddr();
   //int Accept(int listen_fd, sockaddr_in *client_addr);
@@ -68,8 +68,7 @@ class Tun {
   char server_ip_eth_[16];
   char server_ip_ath_[16];
   char broadcast_ip_ath_[16];
-  struct sockaddr_in server_addr_eth_, server_addr_ath_, 
-  client_addr_eth_, client_addr_ath_; 
+  struct sockaddr_in server_addr_eth_, server_addr_ath_, client_addr_ath_; 
   uint16_t port_eth_, port_ath_;
   int sock_fd_eth_, sock_fd_ath_;       // Sockets to handle request at the server side
 

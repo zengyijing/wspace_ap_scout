@@ -361,7 +361,7 @@ void AthCodeHeader::ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, i
 }
 
 /** GPS Header.*/
-void GPSHeader::Init(double time, double latitude, double longitude, double speed) {
+void GPSHeader::Init(double time, double latitude, double longitude, double speed, int client_id) {
   assert(speed >= 0);
   seq_++;
   type_ = GPS;
@@ -369,6 +369,7 @@ void GPSHeader::Init(double time, double latitude, double longitude, double spee
   latitude_ = latitude;
   longitude_ = longitude;
   speed_ = speed;
+  client_id_ = client_id;
 }
 
 /** GPSLogger.*/
@@ -384,7 +385,7 @@ void GPSLogger::ConfigFile(const char* filename) {
     filename_ = filename;
     fp_ = fopen(filename_.c_str(), "w");
     assert(fp_);
-    fprintf(fp_, "###Seq\tTime\tLatitude\tLongitude\tSpeed\n");
+    fprintf(fp_, "###Seq\tTime\tLatitude\tLongitude\tSpeed\tClientID\n");
     fflush(fp_);
   }
   else {
@@ -395,7 +396,7 @@ void GPSLogger::ConfigFile(const char* filename) {
 void GPSLogger::LogGPSInfo(const GPSHeader &hdr) {
   if (fp_ == stdout)
     fprintf(fp_, "GPS pkt: ");
-  fprintf(fp_, "%d\t%.0f\t%.6f\t%.6f\t%.3f\n", hdr.seq_, hdr.time_, hdr.latitude_, hdr.longitude_, hdr.speed_);
+  fprintf(fp_, "%d\t%.0f\t%.6f\t%.6f\t%.3f%d\n", hdr.seq_, hdr.time_, hdr.latitude_, hdr.longitude_, hdr.speed_, hdr.client_id_);
   fflush(fp_);
 }
 
@@ -427,10 +428,8 @@ void AckPkt::ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *e
 void AckPkt::Print() {
   if (ack_hdr_.type_ == DATA_ACK)
     printf("data_ack");
-  else if (ack_hdr_.type_ == RAW_FRONT_ACK)
-    printf("raw_front_ack");
   else
-    printf("raw_back_ack");
+    printf("raw_ack");
   printf("[%u] end_seq[%u] num_nacks[%u] num_pkts[%u] {", ack_hdr_.ack_seq_, ack_hdr_.end_seq_, ack_hdr_.num_nacks_, ack_hdr_.num_pkts_);
   for (int i = 0; i < ack_hdr_.num_nacks_; i++) {
     printf("%u ", ack_hdr_.start_nack_seq_ + rel_seq_arr_[i]);
