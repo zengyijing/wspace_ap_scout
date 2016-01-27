@@ -12,19 +12,6 @@
 static const int kMaxDupAckCnt = 10;
 //static const int kMaxContiguousTimeOut = 5;
 
-class ProbeContext {
- public:
-  ProbeContext();
-  ~ProbeContext();
-  
-  void set_send_probe(bool send_probe);
-  bool send_probe();
-
- private:
-  bool send_probe_;
-  pthread_mutex_t lock_;
-};
-
 class ClientContext {
  public:
   ClientContext(): encoder_(CodeInfo::kEncoder, MAX_BATCH_SIZE, PKT_SIZE), 
@@ -51,7 +38,6 @@ class ClientContext {
   AckContext data_ack_context_;
   FeedbackHandler feedback_handler_;
   GPSLogger gps_logger_;
-  ProbeContext probe_context_;
   pthread_t  p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
 };
 
