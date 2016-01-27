@@ -259,7 +259,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
   for (int j = 0; j < client_context_tbl_[client_id]->encoder()->n(); j++) {
     uint16 send_len=0;
     uint16 rate = rate_arr[j];
-    hdr->SetHeader(raw_seq++, batch_id, client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), server_id_);
+    hdr->SetHeader(raw_seq++, batch_id, client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), server_id_, client_id);
     hdr->SetRate(rate);
     assert(client_context_tbl_[client_id]->encoder()->PopPkt(&encoded_payload, &send_len));
     memcpy(hdr->GetPayloadStart(), encoded_payload, send_len);
