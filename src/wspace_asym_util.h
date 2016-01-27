@@ -29,6 +29,7 @@ static const int kMaxRawBufSize = 4000;
 #define ATH_DATA 1
 #define ATH_CODE 2
 #define DATA_ACK 3
+#define ATH_PROBE 4
 #define RAW_ACK 5
 #define CELL_DATA 6
 #define GPS 7

@@ -14,7 +14,11 @@ static const int kMaxDupAckCnt = 10;
 
 class ClientContext {
  public:
-  ClientContext(): encoder_(CodeInfo::kEncoder, MAX_BATCH_SIZE, PKT_SIZE), data_ack_context_(DATA_ACK), scout_rate_maker_(mac80211abg_rate, mac80211abg_num_rates, GF_SIZE, MAX_BATCH_SIZE), feedback_handler_(RAW_ACK) {}
+  ClientContext(): encoder_(CodeInfo::kEncoder, MAX_BATCH_SIZE, PKT_SIZE), 
+                            data_ack_context_(DATA_ACK), 
+                            scout_rate_maker_(mac80211abg_rate, mac80211abg_num_rates, 
+                                              GF_SIZE, MAX_BATCH_SIZE), 
+                            feedback_handler_(RAW_ACK) {}
   ~ClientContext() {}
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
@@ -45,6 +49,8 @@ class WspaceAP {
   void* TxReadTun(void* arg);
 
   void* TxSendAth(void* arg);
+ 
+  void* TxSendProbe(void* arg);
 
   /** 
    * Parse the ACK of data sequence number, used for freeing buffer space and 
@@ -102,11 +108,13 @@ class WspaceAP {
   int batch_time_out_;
   int rtt_;   // in ms
   //TxDataBuf data_pkt_buf_;  /** Store the data sequence number and data packets for retransmission.*/
-  pthread_t p_tx_read_tun_, p_tx_rcv_cell_;
+  pthread_t p_tx_read_tun_, p_tx_rcv_cell_, p_tx_send_probe_;
   Tun tun_;    // tun interface
-  uint32 coherence_time_;  // in us
+  uint32 coherence_time_;  // in microseconds.
   int contiguous_time_out_;
   int max_contiguous_time_out_;
+  int probing_interval_;  // in microseconds.
+  uint16 probe_pkt_size_; // in bytes.
   //CodeInfo encoder_;
   //AckContext data_ack_context_;
   //FeedbackHandler front_handler_, back_handler_;
@@ -149,6 +157,7 @@ class WspaceAP {
 /** Wrapper function for pthread_create. */
 void* LaunchTxReadTun(void* arg);
 void* LaunchTxSendAth(void* arg);
+void* LaunchTxSendProbe(void* arg);
 void* LaunchTxHandleDataAck(void* arg);
 void* LaunchTxHandleRawAck(void* arg);
 void* LaunchTxRcvCell(void* arg);
