@@ -221,14 +221,12 @@ void WspaceAP::SendLossRate(int client_id) {
   char type = BS_STATS;
   static uint32 seq = 0;
   double throughput = 0;
-  double th = 0;
+  double loss_rate, th;
   LossMap *loss_map = client_context_tbl_[client_id]->scout_rate_maker()->GetLossMap(ScoutRateAdaptation::kBack);
-  for (int i = 0; i < mac80211abg_num_rates; ++i) {
-    double loss_rate = loss_map->GetLossRate(mac80211abg_rate[i]);
-    if (loss_rate != INVALID_LOSS_RATE)
-      th = mac80211abg_rate[i] * (1 - loss_rate);
-    else
-      continue;
+  for (int i = 0; i < mac80211abg_num_rates; i++) {
+    loss_rate = loss_map->GetLossRate(mac80211abg_rate[i]);
+    th = mac80211abg_rate[i] * (1 - loss_rate);
+    //printf("mac80211abg_rate[%d], loss_rate:%d\n", mac80211abg_rate[i], loss_rate);
     if(th > throughput)
       throughput = th;
   }
