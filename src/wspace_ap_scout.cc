@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   printf("ACK header size: %d\n", ACK_HEADER_SIZE);
   const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:";
   wspace_ap = new WspaceAP(argc, argv, opts);
-  wspace_ap->tun_.Init();
+  wspace_ap->Init();
 
   Pthread_create(&wspace_ap->p_tx_read_tun_, NULL, LaunchTxReadTun, NULL);
   Pthread_create(&wspace_ap->p_tx_rcv_cell_, NULL, LaunchTxRcvCell, NULL);
@@ -201,6 +201,20 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 WspaceAP::~WspaceAP() {
 }
 
+void WspaceAP::Init() {
+  tun_.Init();
+  //Initialize former static variables needed by every client.
+  for (map<int, string>::iterator it = tun_.client_ip_tbl_.begin(); it != tun_.client_ip_tbl_.end(); ++it) {
+    batch_id_tbl_[it->first] = 1;
+    raw_seq_tbl_[it->first] = 1;
+    expect_data_ack_seq_tbl_[it->first] = 1;
+    dup_data_ack_cnt_tbl_[it->first] = 0;
+    expect_raw_ack_seq_tbl_[it->first] = 1;
+    data_ack_loss_cnt_tbl_[it->first] = 0;
+    prev_gps_seq_tbl_[it->first] = 0;
+  }
+}
+
 void WspaceAP::ParseIP(const vector<int> &ids, map<int, string> &ip_table) {
   if (ids.empty()) {
     Perror("WspaceAP::ParseIP: Need to indicate ids first!\n");
@@ -247,7 +261,6 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
         int drop_cnt, int *drop_inds) {
   uint8 *encoded_payload=NULL;
   uint32 batch_duration=0;
-  static uint32 batch_id = 1, raw_seq = 1;
   vector<uint32> seq_arr;
   vector<RawPktSendStatus> status_vec;
 
@@ -259,7 +272,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
   for (int j = 0; j < client_context_tbl_[client_id]->encoder()->n(); j++) {
     uint16 send_len=0;
     uint16 rate = rate_arr[j];
-    hdr->SetHeader(raw_seq++, batch_id, client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), server_id_, client_id);
+    hdr->SetHeader(raw_seq_tbl_[client_id]++, batch_id_tbl_[client_id], client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), server_id_, client_id);
     hdr->SetRate(rate);
     assert(client_context_tbl_[client_id]->encoder()->PopPkt(&encoded_payload, &send_len));
     memcpy(hdr->GetPayloadStart(), encoded_payload, send_len);
@@ -286,26 +299,26 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
       hdr->set_is_good(true);
 #endif
       tun_.Write(Tun::kCellular, (char*)hdr, send_len);
-      printf("Duplicate: raw_seq: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u\n", 
-      hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);
+      printf("Duplicate: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u\n", 
+      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);
     }
 */
 
 #ifdef RAND_DROP
-    if (IsDrop() || ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))) { 
+    if (IsDrop() /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
     //if (IsDrop(drop_cnt, drop_inds, j)) {
       hdr->set_is_good(false); 
-      printf("Bad pkt: raw_seq: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      printf("Bad pkt: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
+      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
     else { 
       hdr->set_is_good(true); 
-      printf("Good pkt: raw_seq: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      printf("Good pkt: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
+      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
 #else 
-    printf("Send: raw_seq: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+    printf("Send: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
+      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
 #endif
     tun_.Write(Tun::kWspace, (char*)hdr, send_len);
     //not_drop = false;
@@ -315,7 +328,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
     //printf("pkt_duration: %u\n", pkt_duration);
   }
 
-  batch_id++;
+  batch_id_tbl_[client_id]++;
   delete[] pkt;
 }
 
@@ -439,20 +452,19 @@ void* WspaceAP::TxSendAth(void* arg) {
   return (void*)NULL;
 }
 
-bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end_seq, uint32* nack_arr, int client_id) {
+bool WspaceAP::HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end_seq, uint32* nack_arr, int client_id) {
   uint32 index=0, head_pt=0, curr_pt=0, tail_pt=0, head_pt_final=0, curr_pt_final=0;
   uint32 seq_num=0;
   uint16 nack_cnt=0, len=0; 
   uint8 num_retrans=0;
   Status stat;
   TIME start, end;
-  static uint32 expect_ack_seq=1;
-  static int dup_ack_cnt = 0;
 
-  if (ack_seq < expect_ack_seq)  /** Out of order acks.*/
+
+  if (ack_seq < expect_data_ack_seq_tbl_[client_id])  /** Out of order acks.*/
     return false;
   else
-    expect_ack_seq = ack_seq+1;
+    expect_data_ack_seq_tbl_[client_id] = ack_seq+1;
 
   if (end_seq == 0)  /** Pocking for the first batch.*/
     return false;
@@ -469,11 +481,10 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
   TIME curr;
   curr.GetCurrTime();  
   printf("ack_seq: %u end_seq: %u\n", ack_seq, end_seq);
-  static uint32 ack_loss_cnt=0;
-  if (expect_ack_seq != ack_seq) {
-    ack_loss_cnt += (ack_seq-expect_ack_seq);
-    printf("{Loss ACK: %lf [%u] ", (curr-g_start)/1000., ack_seq-expect_ack_seq);
-    for (uint32 i = expect_ack_seq; i < ack_seq; i++) {
+  if (expect_data_ack_seq_tbl_[client_id] != ack_seq) {
+    data_ack_loss_cnt_tbl_[client_id] += (ack_seq - expect_data_ack_seq_tbl_[client_id]);
+    printf("{Loss ACK: %lf [%u] ", (curr-g_start)/1000., ack_seq - expect_data_ack_seq_tbl_[client_id]);
+    for (uint32 i = expect_data_ack_seq_tbl_[client_id]; i < ack_seq; i++) {
       printf("%u ", i);
     }
     printf("\n");
@@ -485,9 +496,9 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
   if (end_seq-1 < head_pt) {  // dup ack
     printf("DUP ACK end_seq[%u] head_pt[%u]\n", end_seq, head_pt);
     client_context_tbl_[client_id]->data_pkt_buf()->UnLockQueue();
-    dup_ack_cnt++;
-    if (dup_ack_cnt >= kMaxDupAckCnt) { 
-      dup_ack_cnt = 0;
+    dup_data_ack_cnt_tbl_[client_id]++;
+    if (dup_data_ack_cnt_tbl_[client_id] >= kMaxDupAckCnt) { 
+      dup_data_ack_cnt_tbl_[client_id] = 0;
       contiguous_time_out_ = max_contiguous_time_out_;
       return true;
     }
@@ -495,7 +506,7 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
       return false; 
   } 
 
-  dup_ack_cnt = 0;
+  dup_data_ack_cnt_tbl_[client_id] = 0;
   contiguous_time_out_ = 0;
 
   if (num_nacks == 0) {
@@ -523,7 +534,7 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
   }
 
   bool IsFirstUpdate = true;
-  //printf("HandleAck head_pt[%u] cur_pt[%u] tail_pt[%u]\n", head_pt, curr_pt, tail_pt);
+  //printf("HandleDataAck head_pt[%u] cur_pt[%u] tail_pt[%u]\n", head_pt, curr_pt, tail_pt);
   if (num_nacks > 0) {    //handle nacked packets if any 
     end.GetCurrTime();
     for (index = head_pt_final; index <= end_seq-1; index++) {
@@ -535,7 +546,7 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
           if (index+1 == nack_arr[nack_cnt]) {  // NACK (packet is lost)
             double interval = (end - start) / 1000.;  // in ms
             if (num_retrans == 0) {
-              printf("HandleAck: Giveup pkt[%u] interval[%gms] rtt[%dms]\n", 
+              printf("HandleDataAck: Giveup pkt[%u] interval[%gms] rtt[%dms]\n", 
                 nack_arr[nack_cnt], interval, rtt_);
               if (head_pt_final == index) {
                 head_pt_final++; //  reclaim buffer
@@ -544,7 +555,7 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
             }
             else if (interval > rtt_ || num_retrans == num_retrans_) {  // Timeout or first retrans
               client_context_tbl_[client_id]->data_pkt_buf()->GetElementStatus(index_mod) = kOccupiedRetrans;
-              printf("HandleAck: Retransmit pkt[%u] num_retrans[%u] interval[%gms] rtt[%dms]\n", 
+              printf("HandleDataAck: Retransmit pkt[%u] num_retrans[%u] interval[%gms] rtt[%dms]\n", 
                 nack_arr[nack_cnt], num_retrans, interval, rtt_);
               if (IsFirstUpdate) {
                 IsFirstUpdate = false;
@@ -617,7 +628,7 @@ bool WspaceAP::HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end
     double timeout_interval = rtt_ + coherence_time_/1000. * 1.5;
     if (stat == kOccupiedOutbound && interval > timeout_interval) {  // Timeout or first retrans
       client_context_tbl_[client_id]->data_pkt_buf()->GetElementStatus(index_mod) = kOccupiedRetrans;
-      printf("HandleAck: Timeout Retransmit pkt[%u] num_retrans[%u] interval[%gms] timeout_interval[%gms]\n", 
+      printf("HandleDataAck: Timeout Retransmit pkt[%u] num_retrans[%u] interval[%gms] timeout_interval[%gms]\n", 
       seq_num, num_retrans, interval, timeout_interval);
       if (IsFirstUpdate) {
         IsFirstUpdate = false;
@@ -719,7 +730,7 @@ void WspaceAP::HandleTimeOut(int client_id) {
   }
   client_context_tbl_[client_id]->data_pkt_buf()->UnLockQueue();
 
-  /** No need the lock to guard between HandleAck and HandleTimeOut because they are serialized. */
+  /** No need the lock to guard between HandleDataAck and HandleTimeOut because they are serialized. */
   if (increment_time_out)
     contiguous_time_out_++;
   else if (contiguous_time_out_ < max_contiguous_time_out_)
@@ -748,7 +759,7 @@ void* WspaceAP::TxHandleDataAck(void *arg) {
   while (1) {
     is_ack_available = TxHandleAck(*(client_context_tbl_[*client_id]->data_ack_context()), &type, &ack_seq, &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr);
     if (is_ack_available) {
-      dup_ack_timeout = HandleAck(type, ack_seq, num_nacks, end_seq, nack_seq_arr, *client_id);
+      dup_ack_timeout = HandleDataAck(type, ack_seq, num_nacks, end_seq, nack_seq_arr, *client_id);
       if (dup_ack_timeout) { 
         printf("Dup ack timeout! contiguous_time_out[%d]\n", contiguous_time_out_); 
         HandleTimeOut(*client_id);
@@ -790,7 +801,6 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
   uint32 ack_seq=0, end_seq=0;
   uint32 *nack_seq_arr = new uint32[ACK_WINDOW];
   vector<RawPktSendStatus> status_vec;
-  static uint32 expect_ack_seq = 1;
   int radio_id = 0;
 
   while (1) {
@@ -798,13 +808,13 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
               &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr, &num_pkts);
     assert(is_ack_available);  /** No timeout when handling raw ACKs. */
     PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_seq_arr, num_pkts);
-    if (ack_seq >= expect_ack_seq) {
-      expect_ack_seq = ack_seq + 1;
+    if (ack_seq >= expect_raw_ack_seq_tbl_[*client_id]) {
+      expect_raw_ack_seq_tbl_[*client_id] = ack_seq + 1;
       client_context_tbl_[*client_id]->feedback_handler()->raw_pkt_buf_.PopPktStatus(end_seq, num_nacks, num_pkts, nack_seq_arr, status_vec);
       InsertFeedback(status_vec, *client_id);  /** For scout. */
     }
     else
-      printf("Warning: out of order raw ack seq[%u] expect_seq[%u]\n", ack_seq, expect_ack_seq);
+      printf("Warning: out of order raw ack seq[%u] expect_seq[%u]\n", ack_seq, expect_raw_ack_seq_tbl_[*client_id]);
   }
   delete[] nack_seq_arr;
 }
@@ -888,17 +898,16 @@ void WspaceAP::RcvAck(AckContext &ack_context, const char* buf, uint16 len) {
 }
 
 void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
-  static uint32 prev_seq = 0;
   assert(len == GPS_HEADER_SIZE);
   const GPSHeader *hdr = (const GPSHeader*)buf;
-  if (hdr->seq() > prev_seq) {
-    prev_seq = hdr->seq();
+  if (hdr->seq() > prev_gps_seq_tbl_[client_id]) {
+    prev_gps_seq_tbl_[client_id] = hdr->seq();
     client_context_tbl_[client_id]->gps_logger()->LogGPSInfo(*hdr);
     //client_context_tbl_[client_id]->scout_rate_maker()->set_speed(hdr->speed());
     client_context_tbl_[client_id]->scout_rate_maker()->set_speed(0.0);
   }
   else {
-    printf("RcvGPS: Warning seq[%u] <= prev_seq[%u]\n", hdr->seq(), prev_seq);
+    printf("RcvGPS: Warning seq[%u] <= prev_gps_seq_tbl_[%d][%u]\n", hdr->seq(), client_id, prev_gps_seq_tbl_[client_id]);
   }
 }
 

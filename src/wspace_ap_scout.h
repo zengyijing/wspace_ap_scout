@@ -42,6 +42,8 @@ class WspaceAP {
   WspaceAP(int argc, char *argv[], const char *optstring);
   ~WspaceAP();
   
+  void Init();
+
   void* TxReadTun(void* arg);
 
   void* TxSendAth(void* arg);
@@ -60,7 +62,7 @@ class WspaceAP {
 
   void* TxRcvCell(void* arg);
 
-  bool HandleAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end_seq, uint32* nack_arr, int client_id);
+  bool HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end_seq, uint32* nack_arr, int client_id);
 
   void HandleTimeOut(int client_id);
 
@@ -119,6 +121,15 @@ class WspaceAP {
 
   vector<int> client_ids_;
   int server_id_;
+
+  //Former static variables needed by every client
+  map<int, uint32> batch_id_tbl_; //= 1,
+  map<int, uint32> raw_seq_tbl_; //= 1;
+  map<int, uint32> expect_data_ack_seq_tbl_; //=1;
+  map<int, int> dup_data_ack_cnt_tbl_; //= 0;
+  map<int, uint32> expect_raw_ack_seq_tbl_; // = 1;
+  map<int, uint32> data_ack_loss_cnt_tbl_; //=0;
+  map<int, uint32> prev_gps_seq_tbl_; // = 0;
 
  private:
   /**
