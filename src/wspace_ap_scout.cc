@@ -204,14 +204,14 @@ WspaceAP::~WspaceAP() {
 void WspaceAP::Init() {
   tun_.Init();
   //Initialize former static variables needed by every client.
-  for (map<int, string>::iterator it = tun_.client_ip_tbl_.begin(); it != tun_.client_ip_tbl_.end(); ++it) {
-    batch_id_tbl_[it->first] = 1;
-    raw_seq_tbl_[it->first] = 1;
-    expect_data_ack_seq_tbl_[it->first] = 1;
-    dup_data_ack_cnt_tbl_[it->first] = 0;
-    expect_raw_ack_seq_tbl_[it->first] = 1;
-    data_ack_loss_cnt_tbl_[it->first] = 0;
-    prev_gps_seq_tbl_[it->first] = 0;
+  for (vector<int>::iterator it = client_ids_.begin(); it != client_ids_.end(); ++it) {
+    batch_id_tbl_[*it] = 1;
+    raw_seq_tbl_[*it] = 1;
+    expect_data_ack_seq_tbl_[*it] = 1;
+    dup_data_ack_cnt_tbl_[*it] = 0;
+    expect_raw_ack_seq_tbl_[*it] = 1;
+    data_ack_loss_cnt_tbl_[*it] = 0;
+    prev_gps_seq_tbl_[*it] = 0;
   }
 }
 
