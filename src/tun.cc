@@ -35,7 +35,7 @@ void Tun::CreateAddr(const char *ip, int port, sockaddr_in *addr) {
   addr->sin_port = htons(port);
 }
 
-void Tun::CreateConn() {
+void Tun::Init() {
   InitSock();
   ObtainClientAddr();
 }
@@ -81,14 +81,6 @@ void Tun::ObtainClientAddr() {
   /** Obtain client's ath address. */
   CreateAddr(broadcast_ip_ath_, port_ath_, &client_addr_ath_);
   printf("Client ath address: %s\n", inet_ntoa(client_addr_ath_.sin_addr));
-
-  /** Obtain client's eth address. */
-  //Accept(sock_fd_eth_, &client_addr_eth_);
-
-/*
-  strncpy(client_ip_eth_, inet_ntoa(client_addr_eth_.sin_addr), 16);
-  printf("Client eth address: %s\n", client_ip_eth_);
-*/
 
 }
 /*
@@ -136,8 +128,8 @@ uint16_t Tun::Write(const IOType &type, char *buf, uint16_t len) {
   socklen_t addr_len = sizeof(struct sockaddr_in);
   if (type == kTun)
     nwrite = cwrite(tun_fd_, buf, len);
-  else if (type == kCellular)
-    nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&client_addr_eth_, addr_len);
+  //else if (type == kCellular) // Assume no cellular duplication.
+    //nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&client_addr_eth_, addr_len);
 
   else if (type == kControl)
     nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&controller_addr_eth_, addr_len);

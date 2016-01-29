@@ -29,8 +29,7 @@ static const int kMaxRawBufSize = 4000;
 #define ATH_DATA 1
 #define ATH_CODE 2
 #define DATA_ACK 3
-#define RAW_FRONT_ACK 4
-#define RAW_BACK_ACK 5
+#define RAW_ACK 5
 #define CELL_DATA 6
 #define GPS 7
 #define BS_STATS 8
@@ -76,16 +75,6 @@ enum Status {
   kOccupiedRetrans = 3,      /** stores a packet should be retransmited. */
   kOccupiedOutbound = 4,     /** a packet transmitted but does not got ack. */
 };
-
-
-enum Laptop {
-  kInvalid = 0, 
-  kFront = 1,
-  kBack = 2,
-  kFrontScout = 3,
-  kAfterCombine = 4,
-};
-
   
 typedef struct {
   uint32  seq_num;
@@ -435,7 +424,7 @@ class AthHeader {
  public:
   AthHeader() {}
   ~AthHeader() {}
-  AthHeader(char type, uint16 rate) : type_(type), raw_seq_(0), rate_(rate) {}
+  AthHeader(char type, uint16 rate) : type_(type), raw_seq_(0), rate_(rate), bs_id_(0), client_id_(0) {}
 
   uint16 GetRate();
   void SetRate(uint16 rate);
@@ -449,6 +438,7 @@ class AthHeader {
   void set_is_good(bool is_good) { is_good_ = is_good; } 
 #endif
 
+  void set_bs_id(int bs_id) { bs_id_ = bs_id; }
 // Data
   char type_;
   uint32 raw_seq_;
@@ -456,6 +446,8 @@ class AthHeader {
 #ifdef RAND_DROP
   bool is_good_;
 #endif
+  int bs_id_;
+  int client_id_;
 };
 
 class AthDataHeader : public AthHeader {
@@ -474,10 +466,10 @@ class AthCodeHeader : public AthHeader {
  public:
   AthCodeHeader() : AthHeader(ATH_CODE, ATH5K_RATE_CODE_6M), start_seq_(0), ind_(0), k_(0), n_(0) {}
   ~AthCodeHeader() {}
-  void SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq, 
-      char type, int ind, int k, int n, const uint16 *len_arr);
+  void SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq, char type, int ind, int k,
+                 int n, const uint16 *len_arr, int bs_id, int client_id);
   void SetInd(uint8 ind) { ind_ = ind; }
-  void ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, int *k, int *n) const;  
+  void ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, int *k, int *n, int *bs_id, int* client_id) const;  
   void GetLenArr(uint16 *len_arr) const {
     assert(k_ > 0);
     memcpy(len_arr, (uint8*)this + ATH_CODE_HEADER_SIZE, k_ * sizeof(uint16));
@@ -546,6 +538,8 @@ class AckHeader {
 
   void set_num_pkts(uint16 num_pkts) { num_pkts_ = num_pkts; }
 
+  void set_ids(int client_id, int radio_id) { client_id_ = client_id; radio_id_ = radio_id; }
+  int client_id() const { return client_id_; }
 // Data
   char type_;
   uint32 ack_seq_;          // Record the sequence number of ack 
@@ -553,6 +547,8 @@ class AckHeader {
   uint32 start_nack_seq_;   // Starting sequence number of nack
   uint32 end_seq_;          // The end of this ack window - could be a good pkt or a bad pkt 
   uint16 num_pkts_;          // Total number of packets included in this ack. 
+  int client_id_;
+  int radio_id_;
 }; 
 
 class GPSHeader {
@@ -560,10 +556,10 @@ class GPSHeader {
   GPSHeader() : type_(GPS), seq_(0), speed_(-1.0) {}
   ~GPSHeader() {}
 
-  void Init(double time, double latitude, double longitude, double speed);
+  void Init(double time, double latitude, double longitude, double speed, int client_id);
 
   uint32 seq() const { assert(seq_ > 0); return seq_; }
-
+  int client_id() const { return client_id_; }
   double speed() const { assert(speed_ >= 0); return speed_; }
 
  private: 
@@ -575,6 +571,7 @@ class GPSHeader {
   double latitude_;
   double longitude_;
   double speed_; 
+  int client_id_;
 };
 
 class GPSLogger {
@@ -600,7 +597,7 @@ class AckPkt {
 
   void PushNack(uint32 seq);
 
-  void ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *end_seq, uint32 *seq_arr, uint16 *num_pkts=NULL);
+  void ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *end_seq, int* client_id, int* radio_id, uint32 *seq_arr, uint16 *num_pkts=NULL);
 
   uint16 GetLen() {
     uint16 len = sizeof(ack_hdr_) + sizeof(rel_seq_arr_[0]) * ack_hdr_.num_nacks_;
@@ -618,6 +615,7 @@ class AckPkt {
 
   void set_num_pkts(uint16 num_pkts) { ack_hdr_.set_num_pkts(num_pkts); }
 
+  void set_ids(int client_id, int radio_id) { ack_hdr_.set_ids(client_id, radio_id); }
  private:
   AckHeader& ack_hdr() { return ack_hdr_; }
 
