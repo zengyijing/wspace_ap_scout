@@ -13,13 +13,13 @@ static const uint16 kTunMTU = PKT_SIZE - ATH_CODE_HEADER_SIZE - MAX_BATCH_SIZE *
 int main(int argc, char **argv) {
   printf("PKT_SIZE: %d\n", PKT_SIZE);
   printf("ACK header size: %d\n", ACK_HEADER_SIZE);
-  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:";
+  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:o:F:";
   wspace_ap = new WspaceAP(argc, argv, opts);
   wspace_ap->Init();
 
   Pthread_create(&wspace_ap->p_tx_read_tun_, NULL, LaunchTxReadTun, NULL);
   Pthread_create(&wspace_ap->p_tx_rcv_cell_, NULL, LaunchTxRcvCell, NULL);
-
+  Pthread_create(&wspace_ap->p_tx_send_probe_, NULL, LaunchTxSendProbe, NULL);
   for(vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_send_ath(), NULL, LaunchTxSendAth, &(*it));
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack(), NULL, LaunchTxHandleRawAck, &(*it));
@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
 
   Pthread_join(wspace_ap->p_tx_read_tun_, NULL);
   Pthread_join(wspace_ap->p_tx_rcv_cell_, NULL);
+  Pthread_join(wspace_ap->p_tx_send_probe_, NULL);
   for(vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_send_ath()), NULL);
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack()), NULL);
@@ -45,7 +46,8 @@ int main(int argc, char **argv) {
 }
 
 WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring) 
-    : num_retrans_(0), coherence_time_(0), contiguous_time_out_(0), max_contiguous_time_out_(5) {
+    : num_retrans_(0), coherence_time_(0), contiguous_time_out_(0), max_contiguous_time_out_(5),
+      probe_pkt_size_(10), probing_interval_(1000000) {
   int option;
   uint16 rate;
   bool use_fec = true;
@@ -183,6 +185,13 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         ParseIP(client_ids_, tun_.client_ip_tbl_);
         break;
       }
+      case 'o': {
+        probe_pkt_size_ = atoi(optarg);
+        assert(probe_pkt_size_ < PKT_SIZE);
+      }
+      case 'F': {
+        probing_interval_ = atoi(optarg);
+      }
       default:
         Perror("Usage: %s -i tun0/tap0 -S server_eth_ip -s server_ath_ip -C client_eth_ip -c client_ath_ip -m tcp/udp\n", argv[0]);
     }
@@ -235,10 +244,13 @@ void WspaceAP::SendLossRate(int client_id) {
   char type = BS_STATS;
   static uint32 seq = 0;
   double throughput = 0;
-  double loss_rate, th;
+  double loss_rate = 0;
+  double th = 0;
   LossMap *loss_map = client_context_tbl_[client_id]->scout_rate_maker()->GetLossMap(ScoutRateAdaptation::kBack);
   for (int i = 0; i < mac80211abg_num_rates; i++) {
     loss_rate = loss_map->GetLossRate(mac80211abg_rate[i]);
+    if(loss_rate == INVALID_LOSS_RATE)
+      continue;
     th = mac80211abg_rate[i] * (1 - loss_rate);
     //printf("mac80211abg_rate[%d], loss_rate:%d\n", mac80211abg_rate[i], loss_rate);
     if(th > throughput)
@@ -450,6 +462,20 @@ void* WspaceAP::TxSendAth(void* arg) {
     }
   }
   return (void*)NULL;
+}
+
+void* WspaceAP::TxSendProbe(void* arg) {
+  char buf[PKT_SIZE] = {0};
+  *buf = ATH_PROBE;
+  while(1) {
+    char* pkt_content = new char[probe_pkt_size_];
+    memcpy(buf + 1, pkt_content, probe_pkt_size_);
+    for(vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
+      client_context_tbl_[*it]->data_pkt_buf()->EnqueuePkt(probe_pkt_size_ + 1, (uint8*)buf);
+    }
+    delete pkt_content;
+    usleep(probing_interval_);
+  }
 }
 
 bool WspaceAP::HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32 end_seq, uint32* nack_arr, int client_id) {
@@ -938,6 +964,10 @@ void* LaunchTxReadTun(void* arg) {
 
 void* LaunchTxSendAth(void* arg) {
   wspace_ap->TxSendAth(arg);
+}
+
+void* LaunchTxSendProbe(void* arg) {
+  wspace_ap->TxSendProbe(arg);
 }
 
 void* LaunchTxHandleDataAck(void* arg) {
