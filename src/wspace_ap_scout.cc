@@ -300,7 +300,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
 #endif
       tun_.Write(Tun::kCellular, (char*)hdr, send_len);
       printf("Duplicate: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u\n", 
-      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);
+      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);
     }
 */
 
@@ -309,16 +309,16 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
     //if (IsDrop(drop_cnt, drop_inds, j)) {
       hdr->set_is_good(false); 
       printf("Bad pkt: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
     else { 
       hdr->set_is_good(true); 
       printf("Good pkt: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
 #else 
     printf("Send: raw_seq_tbl_[%d]: %u batch_id_tbl_[%d]: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", 
-      client_id, client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
 #endif
     tun_.Write(Tun::kWspace, (char*)hdr, send_len);
     //not_drop = false;
