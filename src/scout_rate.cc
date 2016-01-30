@@ -146,7 +146,7 @@ void ScoutRateAdaptation::MakeDecision(TransmitMode transmit_mode, uint32_t cohe
   if (transmit_mode != kTimeOut) {
     /** Figure out the effective loss rates after packet combining.*/
     CalcLossRatesAfterCombine();  
-    PrintLossRatesAfterCombine();
+    //PrintLossRatesAfterCombine();
 
     /** Make rate decision for the first packet in the batch.*/
     //if (transmit_mode == kRetrans) set_rate(rate_arr_[0]);
@@ -224,12 +224,12 @@ void ScoutRateAdaptation::CalcLossRates(Laptop laptop, const MonotonicTimer &sta
   if (laptop == kFront) {
     feedback_rec = &feedback_rec_front_;
     loss_map = &loss_map_front_;
-    printf("CalcLossRates: front! start[%.3fms] end[%.3fms]\n", start.GetMSec(), end.GetMSec());
+    //printf("CalcLossRates: front! start[%.3fms] end[%.3fms]\n", start.GetMSec(), end.GetMSec());
   }
   else if (laptop == kBack) {
     feedback_rec = &feedback_rec_back_;
     loss_map = &loss_map_back_;
-    printf("CalcLossRates: back start[%.3fms] end[%.3fms]!\n", start.GetMSec(), end.GetMSec());
+    //printf("CalcLossRates: back start[%.3fms] end[%.3fms]!\n", start.GetMSec(), end.GetMSec());
   }
   else
     Perror("ScoutRateAdaptation::CalcLossRates: invalid laptop type[%d]\n", laptop);
@@ -382,7 +382,7 @@ void ScoutRateAdaptation::ConfigLossLookUp() {
       assert(0);
   }
 
-  PrintCombineMode();
+  //PrintCombineMode();
 }
 
 void ScoutRateAdaptation::ConfigSampleMode() {
@@ -543,12 +543,12 @@ void ScoutRateAdaptation::ApplyRateScout(double loss_thresh) {
     if (!IsFeasible(rate_tmp) || loss > loss_thresh) throughput = 0.0;
     throughput_arr.push_back(throughput);
   }
-
+/*
   printf("---Feasible rates---\n");
   PrintVector(feasible_rates());
   printf("---throughput_arr---\n");
   PrintVector(throughput_arr);
-
+*/
   /** Find the index of the rate with the highest throughput. */
   int max_ind = FindMaxInd(throughput_arr);
   assert(max_ind >= 0 && max_ind < sz);
@@ -684,8 +684,8 @@ void ScoutRateAdaptation::ApplyFECForData(uint32_t coherence_time/*us*/, uint16_
     if (n > kMaxK)
       n = kMaxK;
     k = n;
-    printf("ApplyFEC[Data] size[%u] rate[%u] pkt_duration[%u] extra[%uus] k[%d] n[%d] kMaxK[%d]\n", 
-      pkt_size, rate_, pkt_duration, extra_time, k, n, kMaxK);
+    /*printf("ApplyFEC[Data] size[%u] rate[%u] pkt_duration[%u] extra[%uus] k[%d] n[%d] kMaxK[%d]\n", 
+      pkt_size, rate_, pkt_duration, extra_time, k, n, kMaxK);*/
     return;
   }
   double loss = loss_map_combine_.GetLossRate(rate_);
@@ -708,8 +708,8 @@ void ScoutRateAdaptation::ApplyFECForData(uint32_t coherence_time/*us*/, uint16_
   }
   if (k <= 0)
     k = 1;
-  printf("ApplyFEC[Data] size[%u] rate[%u] pkt_duration[%u] extra[%uus] loss[%g] redundancy[%g] k[%d] n[%d] k_no_extra[%d]\n", 
-    pkt_size, rate_, pkt_duration, extra_time, loss, redundancy, k, n, k_no_extra);
+  /*printf("ApplyFEC[Data] size[%u] rate[%u] pkt_duration[%u] extra[%uus] loss[%g] redundancy[%g] k[%d] n[%d] k_no_extra[%d]\n", 
+    pkt_size, rate_, pkt_duration, extra_time, loss, redundancy, k, n, k_no_extra);*/
   assert(k > 0 && k <= kMaxK && n >= k && n <= kGFSize);
 }
 
@@ -727,7 +727,7 @@ void ScoutRateAdaptation::ApplyFECForTimeOut(int k, int &n) {
   assert(k > 0 && k < kMaxK);  /** For batch_time_out only.*/
   if (!use_fec()) {
     n = k;
-    printf("ApplyFEC[Timeout] k[%d] n[%d] kMaxK[%d]\n", k, n, kMaxK);
+    //printf("ApplyFEC[Timeout] k[%d] n[%d] kMaxK[%d]\n", k, n, kMaxK);
     return;
   }
   double loss = loss_map_combine_.GetLossRate(rate_);
@@ -752,8 +752,8 @@ void ScoutRateAdaptation::ApplyFECForTimeOut(int k, int &n) {
     n = n_no_extra_redundancy + kExtraNumPkts; 
   if (n > kGFSize)
     n = kGFSize;
-  printf("ApplyFEC[Timeout] loss[%g] redundancy[%g] k[%d] n[%d] n_no_extra_total[%d]\n", 
-    loss, redundancy, k, n, n_no_extra_redundancy + kExtraNumPkts);
+  /*printf("ApplyFEC[Timeout] loss[%g] redundancy[%g] k[%d] n[%d] n_no_extra_total[%d]\n", 
+    loss, redundancy, k, n, n_no_extra_redundancy + kExtraNumPkts);*/
 }
 
 void ScoutRateAdaptation::ApplyFECForRetransmission(uint32_t coherence_time/*us*/, uint16_t pkt_size,
@@ -772,7 +772,7 @@ void ScoutRateAdaptation::ApplyFECForRetransmission(uint32_t coherence_time/*us*
   assert(k > 0 && k <= kMaxN && k <= kMaxK);  /** Actually k should be 1 for retransmission case only.*/
   if (!use_fec()) {
     n = k;
-    printf("ApplyFEC[Retrans] k[%d] n[%d] kMaxK[%d] kMaxN[%d]\n", k, n, kMaxK, kMaxN);
+    //printf("ApplyFEC[Retrans] k[%d] n[%d] kMaxK[%d] kMaxN[%d]\n", k, n, kMaxK, kMaxN);
     return;
   }
   double loss = loss_map_combine_.GetLossRate(rate_);
@@ -795,7 +795,7 @@ void ScoutRateAdaptation::ApplyFECForRetransmission(uint32_t coherence_time/*us*
     n = n_no_extra_redundancy + kExtraNumPkts; 
   if (n > kMaxN)
     n = kMaxN;
-  printf("ApplyFEC[Retrans] size[%u] rate[%u] pkt_duration[%u] extra[%uus] loss[%g] redundancy[%g] k[%d] n[%d] kMaxN[%d] n_no_extra_total[%d]\n", pkt_size, rate_, pkt_duration, extra_time, loss, redundancy, k, n, kMaxN, n_no_extra_redundancy + kExtraNumPkts);
+  /*printf("ApplyFEC[Retrans] size[%u] rate[%u] pkt_duration[%u] extra[%uus] loss[%g] redundancy[%g] k[%d] n[%d] kMaxN[%d] n_no_extra_total[%d]\n", pkt_size, rate_, pkt_duration, extra_time, loss, redundancy, k, n, kMaxN, n_no_extra_redundancy + kExtraNumPkts);*/
   assert(n >= k && n <= kMaxN);
 }
   

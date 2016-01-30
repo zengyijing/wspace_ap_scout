@@ -15,10 +15,13 @@ static const int kMaxDupAckCnt = 10;
 class ClientContext {
  public:
   ClientContext(): encoder_(CodeInfo::kEncoder, MAX_BATCH_SIZE, PKT_SIZE), 
-                            data_ack_context_(DATA_ACK), 
-                            scout_rate_maker_(mac80211abg_rate, mac80211abg_num_rates, 
+                   data_ack_context_(DATA_ACK), 
+                   scout_rate_maker_(mac80211abg_rate, mac80211abg_num_rates, 
                                               GF_SIZE, MAX_BATCH_SIZE), 
-                            feedback_handler_(RAW_ACK) {}
+                   feedback_handler_(RAW_ACK), batch_id_(1), raw_seq_(1),
+                   expect_data_ack_seq_(1), dup_data_ack_cnt_(0),
+                   expect_raw_ack_seq_(1), data_ack_loss_cnt_(0),
+                   prev_gps_seq_(0), contiguous_time_out_(0) {}
   ~ClientContext() {}
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
@@ -30,6 +33,16 @@ class ClientContext {
   pthread_t* p_tx_send_ath() { return &p_tx_send_ath_; }
   pthread_t* p_tx_handle_data_ack() { return &p_tx_handle_data_ack_; }
   pthread_t* p_tx_handle_raw_ack() { return &p_tx_handle_raw_ack_; }
+
+  //Former static variables needed by every client
+  uint32 batch_id_; //= 1,
+  uint32 raw_seq_; //= 1;
+  uint32 expect_data_ack_seq_; //=1;
+  int dup_data_ack_cnt_; //= 0;
+  uint32 expect_raw_ack_seq_; // = 1;
+  uint32 data_ack_loss_cnt_; //=0;
+  uint32 prev_gps_seq_; // = 0;
+  int contiguous_time_out_;
 
  private:
   TxDataBuf data_pkt_buf_;
@@ -113,7 +126,7 @@ class WspaceAP {
   pthread_t p_tx_read_tun_, p_tx_rcv_cell_, p_tx_send_probe_;
   Tun tun_;    // tun interface
   uint32 coherence_time_;  // in microseconds.
-  int contiguous_time_out_;
+  //int contiguous_time_out_;
   int max_contiguous_time_out_;
   int probing_interval_;  // in microseconds.
   uint16 probe_pkt_size_; // in bytes.
@@ -130,14 +143,7 @@ class WspaceAP {
   vector<int> client_ids_;
   int server_id_;
 
-  //Former static variables needed by every client
-  map<int, uint32> batch_id_tbl_; //= 1,
-  map<int, uint32> raw_seq_tbl_; //= 1;
-  map<int, uint32> expect_data_ack_seq_tbl_; //=1;
-  map<int, int> dup_data_ack_cnt_tbl_; //= 0;
-  map<int, uint32> expect_raw_ack_seq_tbl_; // = 1;
-  map<int, uint32> data_ack_loss_cnt_tbl_; //=0;
-  map<int, uint32> prev_gps_seq_tbl_; // = 0;
+
 
  private:
   /**

@@ -606,7 +606,7 @@ class AckPkt {
     return len;
   }
 
-  void Print();
+  //void Print();
 
   bool IsFull() { return ack_hdr_.num_nacks() >= ACK_WINDOW; }
 

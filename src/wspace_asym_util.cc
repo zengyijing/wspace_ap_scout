@@ -428,7 +428,7 @@ void AckPkt::ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *e
 
 /**
  * Print the nack packet info.
- */ 
+ */ /*
 void AckPkt::Print() {
   if (ack_hdr_.type_ == DATA_ACK)
     printf("data_ack");
@@ -440,7 +440,7 @@ void AckPkt::Print() {
   }
   printf("}\n");
 }
-
+*/
 /**
  * Member functions for raw packet info.
  */ 
