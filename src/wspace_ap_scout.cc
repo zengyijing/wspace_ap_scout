@@ -13,6 +13,11 @@ static const uint16 kTunMTU = PKT_SIZE - ATH_CODE_HEADER_SIZE - MAX_BATCH_SIZE *
 int main(int argc, char **argv) {
   printf("PKT_SIZE: %d\n", PKT_SIZE);
   printf("ACK header size: %d\n", ACK_HEADER_SIZE);
+  printf("sizeof(BSStatsPkt):%d\n", sizeof(BSStatsPkt));
+  printf("sizeof(ControllerToClientHeader):%d\n", sizeof(ControllerToClientHeader));
+  printf("sizeof(CellDataHeader):%d\n", sizeof(CellDataHeader));
+  printf("sizeof(double):%d\n",sizeof(double));
+  printf("sizeof(int):%d\n",sizeof(int));
   const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:o:F:";
   wspace_ap = new WspaceAP(argc, argv, opts);
   wspace_ap->Init();
@@ -247,8 +252,7 @@ void WspaceAP::SendLossRate(int client_id) {
       throughput = th;
   }
   BSStatsPkt pkt;
-  int radio_id = 0; // @Tan: Is radio_id needed?
-  pkt.Init(++seq, server_id_, client_id, (int)ScoutRateAdaptation::kBack, throughput);
+  pkt.Init(++seq, server_id_, client_id, throughput);
   tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 }
 

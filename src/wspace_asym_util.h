@@ -504,17 +504,22 @@ class CellDataHeader {
 
 class ControllerToClientHeader {
  public:
-  ControllerToClientHeader(): type_(CONTROLLER_TO_CLIENT) {
-  }
+  ControllerToClientHeader(): type_(CONTROLLER_TO_CLIENT) {}
   ~ControllerToClientHeader() {}
 
   void set_client_id (int id) { client_id_ = id; }
   int client_id() const { return client_id_; }
+
+  void set_o_seq (uint32 seq) { o_seq_ = seq;}
+  uint32 o_seq() const { return o_seq_; }
+
+  void set_type (char type) { type_ = type; }
   char type() const { return type_; }
 
  private:
   char type_;
   int client_id_;
+  uint32 o_seq_;
 };
 
 class AckHeader {
@@ -643,14 +648,13 @@ class BSStatsPkt {
   }
   ~BSStatsPkt() {}
 
-  void Init(uint32 seq, int bs_id, int client_id, int radio_id, double throughput);
-  void ParsePkt(uint32 *seq, int *bs_id, int *client_id, int *radio_id, double *throughput) const;
+  void Init(uint32 seq, int bs_id, int client_id, double throughput);
+  void ParsePkt(uint32 *seq, int *bs_id, int *client_id, double *throughput) const;
   
   char type_; 
   uint32 seq_;  
   int bs_id_;
   int client_id_;
-  int radio_id_;
   double throughput_;
 };
 

@@ -549,20 +549,18 @@ int AckContext::WaitFill(int wait_ms) {
 }
 
 
-void BSStatsPkt::Init(uint32 seq, int bs_id, int client_id, int radio_id, double throughput) {
+void BSStatsPkt::Init(uint32 seq, int bs_id, int client_id, double throughput) {
   type_ = BS_STATS;
   seq_ = seq;
   bs_id_ = bs_id;
   client_id_ = client_id;
-  radio_id_ = radio_id;
   throughput_ = throughput;
 }
 
-void BSStatsPkt::ParsePkt(uint32 *seq, int *bs_id, int *client_id, int *radio_id, double *throughput) const {
+void BSStatsPkt::ParsePkt(uint32 *seq, int *bs_id, int *client_id, double *throughput) const {
   *seq = seq_;
   *bs_id = bs_id_;
   *client_id = client_id_;
-  *radio_id = radio_id_;
   *throughput = throughput_;
 }
 
