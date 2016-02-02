@@ -102,8 +102,8 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         printf("controller_ip_eth: %s\n", tun_.controller_ip_eth_);
         break;
       case 'I':
-        server_id_ = atoi(optarg);
-        printf("server_id_: %d\n", server_id_);
+        bs_id_ = atoi(optarg);
+        printf("bs_id_: %d\n", bs_id_);
         break;
       case 's':
         strncpy(tun_.server_ip_ath_,optarg,16);
@@ -202,7 +202,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
     }
   }
 
-  assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0] && server_id_ && tun_.client_ip_tbl_.size());
+  assert(tun_.if_name_[0] && tun_.broadcast_ip_ath_[0] && tun_.server_ip_eth_[0] && tun_.server_ip_ath_[0] && tun_.controller_ip_eth_[0] && bs_id_ && tun_.client_ip_tbl_.size());
   for (map<int, string>::iterator it = tun_.client_ip_tbl_.begin(); it != tun_.client_ip_tbl_.end(); ++it) {
     assert(strlen(it->second.c_str()));
   }
@@ -251,7 +251,7 @@ void WspaceAP::SendLossRate(int client_id) {
       throughput = th;
   }
   BSStatsPkt pkt;
-  pkt.Init(++client_context_tbl_[client_id]->bsstats_seq_, server_id_, client_id, throughput);
+  pkt.Init(++client_context_tbl_[client_id]->bsstats_seq_, bs_id_, client_id, throughput);
   tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 }
 
@@ -277,7 +277,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
   for (int j = 0; j < client_context_tbl_[client_id]->encoder()->n(); j++) {
     uint16 send_len=0;
     uint16 rate = rate_arr[j];
-    hdr->SetHeader(client_context_tbl_[client_id]->raw_seq_++, client_context_tbl_[client_id]->batch_id_, client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), server_id_, client_id);
+    hdr->SetHeader(client_context_tbl_[client_id]->raw_seq_++, client_context_tbl_[client_id]->batch_id_, client_context_tbl_[client_id]->encoder()->start_seq(), ATH_CODE, j, client_context_tbl_[client_id]->encoder()->k(), client_context_tbl_[client_id]->encoder()->n(), client_context_tbl_[client_id]->encoder()->lens(), bs_id_, client_id);
     hdr->SetRate(rate);
     assert(client_context_tbl_[client_id]->encoder()->PopPkt(&encoded_payload, &send_len));
     memcpy(hdr->GetPayloadStart(), encoded_payload, send_len);
@@ -772,9 +772,9 @@ void* WspaceAP::TxHandleDataAck(void *arg) {
   char type;
   bool is_ack_available=false; 
   bool dup_ack_timeout = false;
-  int radio_id = 0; // not useful for data ack.
+  int bs_id = 0;
   while (1) {
-    is_ack_available = TxHandleAck(*(client_context_tbl_[*client_id]->data_ack_context()), &type, &ack_seq, &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr);
+    is_ack_available = TxHandleAck(*(client_context_tbl_[*client_id]->data_ack_context()), &type, &ack_seq, &num_nacks, &end_seq, *client_id, &bs_id, nack_seq_arr);
     if (is_ack_available) {
       dup_ack_timeout = HandleDataAck(type, ack_seq, num_nacks, end_seq, nack_seq_arr, *client_id);
       if (dup_ack_timeout) { 
@@ -818,11 +818,11 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
   uint32 ack_seq=0, end_seq=0;
   uint32 *nack_seq_arr = new uint32[ACK_WINDOW];
   vector<RawPktSendStatus> status_vec;
-  int radio_id = 0;
+  int bs_id = 0;
 
   while (1) {
     bool is_ack_available = TxHandleAck(client_context_tbl_[*client_id]->feedback_handler()->raw_ack_context_, &type, &ack_seq, 
-              &num_nacks, &end_seq, *client_id, &radio_id, nack_seq_arr, &num_pkts);
+              &num_nacks, &end_seq, *client_id, &bs_id, nack_seq_arr, &num_pkts);
     assert(is_ack_available);  /** No timeout when handling raw ACKs. */
     //PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_seq_arr, num_pkts);
     if (ack_seq >= client_context_tbl_[*client_id]->expect_raw_ack_seq_) {
@@ -837,7 +837,7 @@ void* WspaceAP::TxHandleRawAck(void* arg) {
 }
 
 bool WspaceAP::TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq, uint16 *num_nacks,
-        uint32 *end_seq, int client_id, int* radio_id, uint32 *nack_seq_arr, uint16 *num_pkts) {
+        uint32 *end_seq, int client_id, int* bs_id, uint32 *nack_seq_arr, uint16 *num_pkts) {
   int client = 0;
   char pkt_type;
   ack_context.Lock();
@@ -857,9 +857,9 @@ bool WspaceAP::TxHandleAck(AckContext &ack_context, char *type, uint32 *ack_seq,
   bool ack_available = ack_context.ack_available();
   if (ack_context.ack_available()) {
     ack_context.set_ack_available(false);
-    (ack_context.pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, &client, radio_id, nack_seq_arr, num_pkts);
-    assert(client == client_id);
-    //printf("TxHandleAck: pkt_type:%d, client_id:%d, radio_id:%d\n", (int)pkt_type, client_id, *radio_id);
+    (ack_context.pkt())->ParseNack(&pkt_type, ack_seq, num_nacks, end_seq, &client, bs_id, nack_seq_arr, num_pkts);
+    assert(client == client_id && *bs_id == bs_id_);
+    //printf("TxHandleAck: pkt_type:%d, client_id:%d, bs_id:%d\n", (int)pkt_type, client_id, *bs_id);
     assert(pkt_type == ack_context.type());
     *type = pkt_type;
   }
