@@ -21,7 +21,7 @@ class ClientContext {
                    feedback_handler_(RAW_ACK), batch_id_(1), raw_seq_(1),
                    expect_data_ack_seq_(1), dup_data_ack_cnt_(0),
                    expect_raw_ack_seq_(1), data_ack_loss_cnt_(0),
-                   prev_gps_seq_(0), contiguous_time_out_(0) {}
+                   prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {}
   ~ClientContext() {}
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
@@ -43,7 +43,7 @@ class ClientContext {
   uint32 data_ack_loss_cnt_; //=0;
   uint32 prev_gps_seq_; // = 0;
   int contiguous_time_out_;
-
+  uint32 bsstats_seq_;
  private:
   TxDataBuf data_pkt_buf_;
   CodeInfo encoder_;

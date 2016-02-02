@@ -237,7 +237,6 @@ void WspaceAP::ParseIP(const vector<int> &ids, map<int, string> &ip_table) {
 
 void WspaceAP::SendLossRate(int client_id) {
   char type = BS_STATS;
-  static uint32 seq = 0;
   double throughput = 0;
   double loss_rate = 0;
   double th = 0;
@@ -252,7 +251,7 @@ void WspaceAP::SendLossRate(int client_id) {
       throughput = th;
   }
   BSStatsPkt pkt;
-  pkt.Init(++seq, server_id_, client_id, throughput);
+  pkt.Init(++client_context_tbl_[client_id]->bsstats_seq_, server_id_, client_id, throughput);
   tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 }
 
