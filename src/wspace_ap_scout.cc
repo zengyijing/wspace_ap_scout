@@ -40,12 +40,6 @@ int main(int argc, char **argv) {
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack()), NULL);
   }
 
-
-  for (vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
-    delete wspace_ap->client_context_tbl_[*it];
-  }
-
-
   delete wspace_ap;
   return 0;
 }
@@ -173,24 +167,18 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
         stringstream ss(optarg);
-        vector<int> prob;
+        map<int, ClientContext*>::iterator it = client_context_tbl_.begin();
+        int count = 1;
         while(getline(ss, s, ',')) {
+          if(count > client_context_tbl_.size())
+            Perror("Too many random drop probability.\n");
           int p = atoi(s.c_str());
           if(p > 100 || p < 0)
-              Perror("Invalid random drop probability.\n");
-          prob.push_back(p);
-        }
-        vector<int>::iterator it_v = prob.begin();
-        int size = prob.size();
-        for (map<int, ClientContext*>::iterator it = client_context_tbl_.begin(); it != client_context_tbl_.end(); ++it) {
-          if (size > 0) {
-            it->second->drop_prob_ = *it_v;
-            ++it_v;
-            --size;
-          } else {
-            it->second->drop_prob_ = 0;
-          }
-          printf("Packet corrupt probability: %d\n", it->second->drop_prob_);
+            Perror("Invalid random drop probability.\n");
+          it->second->drop_prob_ = p;
+          printf("Packet corrupt probability: %d\n", p);
+          ++it;
+          ++count;
         }
         break;
       }
@@ -233,6 +221,9 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
 }
 
 WspaceAP::~WspaceAP() {
+  for (vector<int>::iterator it = client_ids_.begin(); it != client_ids_.end(); ++it) {
+    delete client_context_tbl_[*it];
+  }
 }
 
 void WspaceAP::Init() {
