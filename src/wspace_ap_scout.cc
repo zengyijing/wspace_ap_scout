@@ -58,9 +58,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
   bool use_fec = true;
   RateAdaptVersion rate_adapt_version;
   bool enable_duplicate = true;
-#ifdef RAND_DROP
-  drop_prob_ = 0;
-#endif
+
   while ((option = getopt(argc, argv, optstring)) > 0) {
     switch(option) {
       case 'R':  /** Number of retransmission. */
@@ -170,10 +168,32 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         assert(max_contiguous_time_out_ > 0);
         break;
 #ifdef RAND_DROP
-      case 'd': 
-        drop_prob_ = atoi(optarg);
-        printf("Packet corrupt probability: %d\%\n", drop_prob_);
+      case 'd': {
+        if ( client_ids_.size() == 0 )
+          Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
+        string s;
+        stringstream ss(optarg);
+        vector<int> prob;
+        while(getline(ss, s, ',')) {
+          int p = atoi(s.c_str());
+          if(p > 100 || p < 0)
+              Perror("Invalid random drop probability.\n");
+          prob.push_back(p);
+        }
+        vector<int>::iterator it_v = prob.begin();
+        int size = prob.size();
+        for (map<int, ClientContext*>::iterator it = client_context_tbl_.begin(); it != client_context_tbl_.end(); ++it) {
+          if (size > 0) {
+            it->second->drop_prob_ = *it_v;
+            ++it_v;
+            --size;
+          } else {
+            it->second->drop_prob_ = 0;
+          }
+          printf("Packet corrupt probability: %d\n", it->second->drop_prob_);
+        }
         break;
+      }
 #endif
       case 'c': {
         string addr;
@@ -310,7 +330,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
 */
 
 #ifdef RAND_DROP
-    if (IsDrop() /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
+    if (IsDrop(client_id) /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
     //if (IsDrop(drop_cnt, drop_inds, j)) {
       hdr->set_is_good(false); /*
       printf("Bad pkt: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());*/
@@ -931,7 +951,7 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 #ifdef RAND_DROP
 void WspaceAP::GetDropInds(int *drop_cnt, int **inds, int client_id) {
   int n = client_context_tbl_[client_id]->encoder()->n();
-  *drop_cnt = ceil(n * drop_prob_/100.);
+  *drop_cnt = ceil(n * client_context_tbl_[client_id]->drop_prob_/100.);
   int rand_ind=-1;
   if (*drop_cnt == 0) {
     *inds = NULL;

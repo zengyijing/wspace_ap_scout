@@ -64,7 +64,7 @@ static const int kMaxRawBufSize = 4000;
 #define ATH5K_RATE_CODE_48M  0x08
 #define ATH5K_RATE_CODE_54M  0x0C
 
-//#define RAND_DROP
+#define RAND_DROP
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
@@ -444,11 +444,11 @@ class AthHeader {
   char type_;
   uint32 raw_seq_;
   uint16 rate_;
+  int bs_id_;
+  int client_id_;
 #ifdef RAND_DROP
   bool is_good_;
 #endif
-  int bs_id_;
-  int client_id_;
 };
 
 class AthDataHeader : public AthHeader {
