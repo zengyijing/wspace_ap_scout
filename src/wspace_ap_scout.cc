@@ -691,7 +691,7 @@ void WspaceAP::HandleTimeOut(int client_id) {
   uint8 num_retrans=0;
   Status stat;
   vector<RawPktSendStatus> status_vec;
-  
+
   client_context_tbl_[client_id]->data_pkt_buf()->LockQueue();
   head_pt = client_context_tbl_[client_id]->data_pkt_buf()->head_pt();
   curr_pt = client_context_tbl_[client_id]->data_pkt_buf()->curr_pt();
@@ -701,7 +701,7 @@ void WspaceAP::HandleTimeOut(int client_id) {
   head_pt_final = head_pt;
   curr_pt_final = curr_pt;
   end.GetCurrTime();
-  //printf("timeout head_pt[%u] curr_pt[%u]\n", head_pt, curr_pt);
+  //printf("timeout head_pt[%u] curr_pt[%u] tail_pt[%u]\n", head_pt, curr_pt, tail_pt);
   bool increment_time_out = false;
 
   for (index = head_pt; index < tail_pt; index++) {
@@ -903,7 +903,10 @@ void* WspaceAP::TxRcvCell(void* arg) {
     }
     else if (type == CONTROLLER_TO_CLIENT) {
       ControllerToClientHeader* hdr = (ControllerToClientHeader*)buf;
-      client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
+      if (client_context_tbl_[hdr->client_id()]->data_pkt_buf()->IsFull())
+        printf("Drop pkt since the queue is full\n");
+      else
+        client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
     }
     else {
       Perror("TxRcvCell: Invalid pkt type[%d]\n", type);
