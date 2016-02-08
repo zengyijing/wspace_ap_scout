@@ -903,9 +903,7 @@ void* WspaceAP::TxRcvCell(void* arg) {
     }
     else if (type == CONTROLLER_TO_CLIENT) {
       ControllerToClientHeader* hdr = (ControllerToClientHeader*)buf;
-      if (client_context_tbl_[hdr->client_id()]->data_pkt_buf()->IsFull())
-        printf("Drop pkt since the queue is full\n");
-      else
+      if (client_context_tbl_[hdr->client_id()]->data_pkt_buf()->IsFull() != true)
         client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
     }
     else {
