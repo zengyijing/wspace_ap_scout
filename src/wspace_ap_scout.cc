@@ -167,7 +167,8 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
         stringstream ss(optarg);
-        map<int, ClientContext*>::iterator it = client_context_tbl_.begin();
+        //map<int, ClientContext*>::iterator it = client_context_tbl_.begin();
+        vector<int>::iterator it = client_ids_.begin();
         int count = 1;
         while(getline(ss, s, ',')) {
           if(count > client_context_tbl_.size())
@@ -175,7 +176,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           int p = atoi(s.c_str());
           if(p > 100 || p < 0)
             Perror("Invalid random drop probability.\n");
-          it->second->drop_prob_ = p;
+          client_context_tbl_[*it]->drop_prob_ = p;
           printf("Packet corrupt probability: %d\n", p);
           ++it;
           ++count;
