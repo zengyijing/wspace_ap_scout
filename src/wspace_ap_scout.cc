@@ -474,8 +474,7 @@ void* WspaceAP::TxSendProbe(void* arg) {
     char* pkt_content = new char[probe_pkt_size_];
     memcpy(buf + 1, pkt_content, probe_pkt_size_);
     for(vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
-      if (client_context_tbl_[*it]->data_pkt_buf()->IsFull() != true)
-        client_context_tbl_[*it]->data_pkt_buf()->EnqueuePkt(probe_pkt_size_ + 1, (uint8*)buf);
+      client_context_tbl_[*it]->data_pkt_buf()->EnqueuePkt(probe_pkt_size_ + 1, (uint8*)buf);
     }
     delete pkt_content;
     usleep(probing_interval_);
@@ -904,8 +903,7 @@ void* WspaceAP::TxRcvCell(void* arg) {
     }
     else if (type == CONTROLLER_TO_CLIENT) {
       ControllerToClientHeader* hdr = (ControllerToClientHeader*)buf;
-      if (client_context_tbl_[hdr->client_id()]->data_pkt_buf()->IsFull() != true)
-        client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
+      client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
     }
     else {
       Perror("TxRcvCell: Invalid pkt type[%d]\n", type);

@@ -236,7 +236,7 @@ class BasicBuf {
     
   void AcquireHeadLock(uint32 *index);    // Function acquires and releases qlock_ inside
 
-  void AcquireTailLock(uint32 *index);    // Function acquires and releases qlock_ inside
+  bool AcquireTailLock(uint32 *index);    // Function acquires and releases qlock_ inside
 
   void UpdateBookKeeping(uint32 index, uint32 seq_num, Status status, uint16 len);
 

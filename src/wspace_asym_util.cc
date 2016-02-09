@@ -24,19 +24,18 @@ void BasicBuf::AcquireHeadLock(uint32 *index) {
 /*
 Purpose: Enqueue an element in the tail
 */
-void BasicBuf::AcquireTailLock(uint32 *index) {
+bool BasicBuf::AcquireTailLock(uint32 *index) {
   LockQueue();
-  while (IsFull()) {
-//#ifdef TEST
-    printf("Full! head_pt[%u] tail_pt[%u]\n", head_pt_, tail_pt_);
-//#endif
-    WaitEmpty();
-  }    
+  if (IsFull()) {
+    UnLockQueue();
+    return false;
+  }
   *index = tail_pt_mod(); //current element
   LockElement(*index);
   IncrementTailPt();
   SignalFill();
   UnLockQueue();
+  return true;
 }
 
 void BasicBuf::UpdateBookKeeping(uint32 index, uint32 seq_num, Status status, uint16 len) {
@@ -151,14 +150,15 @@ void TxDataBuf::EnqueuePkt(uint16 len, uint8 *pkt) {
   uint32 index=0, seq_num=0;
   uint8 *buf_addr=NULL;
   seq_num = tail_pt()+1;
-  AcquireTailLock(&index);
-  /** Get the address of the current slot to store the packet. */
-  GetPktBufAddr(index, &buf_addr);
-  memcpy(buf_addr, pkt, len);
-  assert(GetElementStatus(index) == kEmpty);
-  // Update bookkeeping
-  UpdateBookKeeping(index, seq_num, kOccupiedNew, len, num_retrans(), false/**don't update timestamp for now*/);
-  UnLockElement(index);
+  if(AcquireTailLock(&index)) {
+    /** Get the address of the current slot to store the packet. */
+    GetPktBufAddr(index, &buf_addr);
+    memcpy(buf_addr, pkt, len);
+    assert(GetElementStatus(index) == kEmpty);
+    // Update bookkeeping
+    UpdateBookKeeping(index, seq_num, kOccupiedNew, len, num_retrans(), false/**don't update timestamp for now*/);
+    UnLockElement(index);
+  }
 }
 
 bool TxDataBuf::DequeuePkt(int time_out, uint32 *seq_num, uint16 *len, Status *status, 
