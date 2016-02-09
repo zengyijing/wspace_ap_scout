@@ -474,7 +474,8 @@ void* WspaceAP::TxSendProbe(void* arg) {
     char* pkt_content = new char[probe_pkt_size_];
     memcpy(buf + 1, pkt_content, probe_pkt_size_);
     for(vector<int>::iterator it = wspace_ap->client_ids_.begin(); it != wspace_ap->client_ids_.end(); ++it) {
-      client_context_tbl_[*it]->data_pkt_buf()->EnqueuePkt(probe_pkt_size_ + 1, (uint8*)buf);
+      if (client_context_tbl_[*it]->data_pkt_buf()->IsFull() != true)
+        client_context_tbl_[*it]->data_pkt_buf()->EnqueuePkt(probe_pkt_size_ + 1, (uint8*)buf);
     }
     delete pkt_content;
     usleep(probing_interval_);
