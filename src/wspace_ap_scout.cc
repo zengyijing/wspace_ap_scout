@@ -64,15 +64,24 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         }
         printf("NUM_RETRANS: %d\n", num_retrans_);
         break;
-      case 'r':  /** For data rate*/
+      case 'r': {  /** For data rate*/
         if ( client_ids_.size() == 0 )
           Perror("Need to set client ids before setting scout_rate_maker_ of client_context_tbl_\n");
-        rate = (uint16)atoi(optarg);
-        for (map<int, ClientContext*>::iterator it = client_context_tbl_.begin(); it != client_context_tbl_.end(); ++it) {
-          it->second->scout_rate_maker()->set_rate(rate);
+        string s;
+        stringstream ss(optarg);
+        vector<int>::iterator it = client_ids_.begin();
+        int count = 1;
+        while(getline(ss, s, ',')) {
+          if(count > client_context_tbl_.size())
+            Perror("Too many input rate.\n");
+          int rate = atoi(s.c_str());
+          client_context_tbl_[*it]->scout_rate_maker()->set_rate(rate);
+          printf("Rate: %gMbps\n", rate/10.);
+          ++it;
+          ++count;
         }
-        printf("Rate: %gMbps\n", rate/10.);
         break;
+      }
       case 'T':
         ack_time_out_ = atoi(optarg);
         printf("ACK_TIME_OUT: %dms\n", ack_time_out_);
@@ -167,7 +176,6 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
         stringstream ss(optarg);
-        //map<int, ClientContext*>::iterator it = client_context_tbl_.begin();
         vector<int>::iterator it = client_ids_.begin();
         int count = 1;
         while(getline(ss, s, ',')) {
