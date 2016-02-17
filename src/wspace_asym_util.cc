@@ -24,19 +24,18 @@ void BasicBuf::AcquireHeadLock(uint32 *index) {
 /*
 Purpose: Enqueue an element in the tail
 */
-void BasicBuf::AcquireTailLock(uint32 *index) {
+bool BasicBuf::AcquireTailLock(uint32 *index) {
   LockQueue();
-  while (IsFull()) {
-//#ifdef TEST
-    printf("Full! head_pt[%u] tail_pt[%u]\n", head_pt_, tail_pt_);
-//#endif
-    WaitEmpty();
-  }    
+  if (IsFull()) {
+    UnLockQueue();
+    return false;
+  }
   *index = tail_pt_mod(); //current element
   LockElement(*index);
   IncrementTailPt();
   SignalFill();
   UnLockQueue();
+  return true;
 }
 
 void BasicBuf::UpdateBookKeeping(uint32 index, uint32 seq_num, Status status, uint16 len) {
@@ -151,14 +150,15 @@ void TxDataBuf::EnqueuePkt(uint16 len, uint8 *pkt) {
   uint32 index=0, seq_num=0;
   uint8 *buf_addr=NULL;
   seq_num = tail_pt()+1;
-  AcquireTailLock(&index);
-  /** Get the address of the current slot to store the packet. */
-  GetPktBufAddr(index, &buf_addr);
-  memcpy(buf_addr, pkt, len);
-  assert(GetElementStatus(index) == kEmpty);
-  // Update bookkeeping
-  UpdateBookKeeping(index, seq_num, kOccupiedNew, len, num_retrans(), false/**don't update timestamp for now*/);
-  UnLockElement(index);
+  if(AcquireTailLock(&index)) {
+    /** Get the address of the current slot to store the packet. */
+    GetPktBufAddr(index, &buf_addr);
+    memcpy(buf_addr, pkt, len);
+    assert(GetElementStatus(index) == kEmpty);
+    // Update bookkeeping
+    UpdateBookKeeping(index, seq_num, kOccupiedNew, len, num_retrans(), false/**don't update timestamp for now*/);
+    UnLockElement(index);
+  }
 }
 
 bool TxDataBuf::DequeuePkt(int time_out, uint32 *seq_num, uint16 *len, Status *status, 
@@ -336,8 +336,9 @@ void AthDataHeader::ParseAthHdr(uint32 *seq_num, uint16 *len, char *rate) {
 }
 
 /** FEC vdm */
-void AthCodeHeader::SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq, char type, 
-        int ind, int k, int n, const uint16 *len_arr) {
+void AthCodeHeader::SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq,
+                              char type, int ind, int k, int n, const uint16 *len_arr,
+                              int bs_id, int client_id) {
   assert(raw_seq > 0 && batch_id > 0 && start_seq > 0 && ind >= 0 && ind < n && k >= 0 && n >= 0 && k <= n);
   SetRawSeq(raw_seq);
   batch_id_ = batch_id;
@@ -346,20 +347,25 @@ void AthCodeHeader::SetHeader(uint32 raw_seq, uint32 batch_id, uint32 start_seq,
   ind_ = ind;
   k_ = k;
   n_ = n;
+  bs_id_ = bs_id;
+  client_id_ = client_id;
   memcpy((uint8*)this + ATH_CODE_HEADER_SIZE, len_arr, k_ * sizeof(uint16));
 }
 
-void AthCodeHeader::ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind, int *k, int *n) const {
+void AthCodeHeader::ParseHeader(uint32 *batch_id, uint32 *start_seq, int *ind,
+                                int *k, int *n, int *bs_id, int *client_id) const {
   assert(batch_id_ > 0 && start_seq_ > 0 && ind_ < n_ && k_ <= n_ && k_ > 0 && k_ <= MAX_BATCH_SIZE);
   *batch_id = batch_id_;
   *start_seq = start_seq_;
   *ind = ind_;
   *k = k_;
   *n = n_;
+  *bs_id = bs_id_;
+  *client_id = client_id_;
 }
 
 /** GPS Header.*/
-void GPSHeader::Init(double time, double latitude, double longitude, double speed) {
+void GPSHeader::Init(double time, double latitude, double longitude, double speed, int client_id) {
   assert(speed >= 0);
   seq_++;
   type_ = GPS;
@@ -367,6 +373,7 @@ void GPSHeader::Init(double time, double latitude, double longitude, double spee
   latitude_ = latitude;
   longitude_ = longitude;
   speed_ = speed;
+  client_id_ = client_id;
 }
 
 /** GPSLogger.*/
@@ -382,7 +389,7 @@ void GPSLogger::ConfigFile(const char* filename) {
     filename_ = filename;
     fp_ = fopen(filename_.c_str(), "w");
     assert(fp_);
-    fprintf(fp_, "###Seq\tTime\tLatitude\tLongitude\tSpeed\n");
+    fprintf(fp_, "###Seq\tTime\tLatitude\tLongitude\tSpeed\tClientID\n");
     fflush(fp_);
   }
   else {
@@ -393,7 +400,7 @@ void GPSLogger::ConfigFile(const char* filename) {
 void GPSLogger::LogGPSInfo(const GPSHeader &hdr) {
   if (fp_ == stdout)
     fprintf(fp_, "GPS pkt: ");
-  fprintf(fp_, "%d\t%.0f\t%.6f\t%.6f\t%.3f\n", hdr.seq_, hdr.time_, hdr.latitude_, hdr.longitude_, hdr.speed_);
+  fprintf(fp_, "%d\t%.0f\t%.6f\t%.6f\t%.3f%d\n", hdr.seq_, hdr.time_, hdr.latitude_, hdr.longitude_, hdr.speed_, hdr.client_id_);
   fflush(fp_);
 }
 
@@ -405,11 +412,13 @@ void GPSLogger::LogGPSInfo(const GPSHeader &hdr) {
  * @param [out] end_seq: Highest sequence number of the good packets.
  * @param [out] seq_arr: Array of sequence numbers of lost packets.
 */ 
-void AckPkt::ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *end_seq, uint32 *seq_arr, uint16 *num_pkts) {
+void AckPkt::ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *end_seq, int* client_id, int* bs_id, uint32 *seq_arr, uint16 *num_pkts) {
   *type = ack_hdr_.type_;
   *ack_seq = ack_hdr_.ack_seq_;
   *num_nacks = ack_hdr_.num_nacks_;
   *end_seq = ack_hdr_.end_seq_;
+  *client_id = ack_hdr_.client_id_;
+  *bs_id = ack_hdr_.bs_id_;
   if (num_pkts)
     *num_pkts = ack_hdr_.num_pkts_;
   for (int i = 0; i < ack_hdr_.num_nacks_; i++) {
@@ -419,21 +428,19 @@ void AckPkt::ParseNack(char *type, uint32 *ack_seq, uint16 *num_nacks, uint32 *e
 
 /**
  * Print the nack packet info.
- */ 
+ */ /*
 void AckPkt::Print() {
   if (ack_hdr_.type_ == DATA_ACK)
     printf("data_ack");
-  else if (ack_hdr_.type_ == RAW_FRONT_ACK)
-    printf("raw_front_ack");
   else
-    printf("raw_back_ack");
+    printf("raw_ack");
   printf("[%u] end_seq[%u] num_nacks[%u] num_pkts[%u] {", ack_hdr_.ack_seq_, ack_hdr_.end_seq_, ack_hdr_.num_nacks_, ack_hdr_.num_pkts_);
   for (int i = 0; i < ack_hdr_.num_nacks_; i++) {
     printf("%u ", ack_hdr_.start_nack_seq_ + rel_seq_arr_[i]);
   }
   printf("}\n");
 }
-
+*/
 /**
  * Member functions for raw packet info.
  */ 
@@ -542,20 +549,18 @@ int AckContext::WaitFill(int wait_ms) {
 }
 
 
-void BSStatsPkt::Init(uint32 seq, int bs_id, int client_id, int radio_id, double throughput) {
+void BSStatsPkt::Init(uint32 seq, int bs_id, int client_id, double throughput) {
   type_ = BS_STATS;
   seq_ = seq;
   bs_id_ = bs_id;
   client_id_ = client_id;
-  radio_id_ = radio_id;
   throughput_ = throughput;
 }
 
-void BSStatsPkt::ParsePkt(uint32 *seq, int *bs_id, int *client_id, int *radio_id, double *throughput) const {
+void BSStatsPkt::ParsePkt(uint32 *seq, int *bs_id, int *client_id, double *throughput) const {
   *seq = seq_;
   *bs_id = bs_id_;
   *client_id = client_id_;
-  *radio_id = radio_id_;
   *throughput = throughput_;
 }
 

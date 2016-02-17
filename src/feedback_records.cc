@@ -99,8 +99,8 @@ bool FeedbackRecords::CalcLossRates(const MonotonicTimer& start, const Monotonic
       loss_rate.push_back(-1.0);
     else
       loss_rate.push_back(1.0 - (double)rate_table_[rate].n_ack_/(double)rate_table_[rate].n_sent_);
-    printf("---CalcLossRates rate[%u] n_sent[%u] n_ack_[%u] loss[%g]\n", 
-      rate, rate_table_[rate].n_sent_, rate_table_[rate].n_ack_, loss_rate.back());
+    /*printf("---CalcLossRates rate[%u] n_sent[%u] n_ack_[%u] loss[%g]\n", 
+      rate, rate_table_[rate].n_sent_, rate_table_[rate].n_ack_, loss_rate.back());*/
   }
   UnLock();
   return true;
