@@ -172,6 +172,8 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         break;
 #ifdef RAND_DROP
       case 'd': {
+        // @yijing:
+        loss_rate_parser.ParseLossRates();
         if ( client_ids_.size() == 0 )
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
@@ -949,6 +951,14 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 }
 
 #ifdef RAND_DROP
+// @yijing
+void* WspaceAP::UpdateLossRates(void* arg) {
+  while (true) {
+	loss_rate_parser.GetNextLossRate();
+	sleep(1);
+  }
+}
+
 void WspaceAP::GetDropInds(int *drop_cnt, int **inds, int client_id) {
   int n = client_context_tbl_[client_id]->encoder()->n();
   *drop_cnt = ceil(n * client_context_tbl_[client_id]->drop_prob_/100.);
@@ -967,6 +977,8 @@ void WspaceAP::GetDropInds(int *drop_cnt, int **inds, int client_id) {
     *inds = ind_arr;
   }
 }
+
+void WspaceAP::
 #endif
 
 void* LaunchTxReadTun(void* arg) {

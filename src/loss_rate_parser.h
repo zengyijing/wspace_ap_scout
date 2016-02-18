@@ -16,13 +16,13 @@ class LossRateParser {
   
   // <client_id, <bs_id, filename> >.
   void ParseLossRates(unordered_map<int, unordered_map<int, string> > &filename_tbl);
-  double GetNextLossRate(int bs_id, int client_id);
+  double GetNextLossRate(int client_id, int bs_id);
 
  private:
   void ParseLossRates(const string &filename);
     
   vector<int> rate_arr_; 
-  unordered_map<int, unordered_map<int, LossTable> > loss_tbl_;  // <client_id, <bs_id, loss_table> >.
+  unordered_map<int, unordered_map<int, vector<LossTable> > > loss_tbl_;  // <client_id, <bs_id, loss_table> >.
 };
 
 #endif

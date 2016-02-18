@@ -103,6 +103,9 @@ class WspaceAP {
 #endif
 
 #ifdef RAND_DROP
+  // @yijing: implement it in .cc and call loss_rate_parser.GetNextLossRate.
+  void* UpdateLossRates(void* arg);
+
   bool IsDrop(int client_id) {
     return (rand() % 100 < client_context_tbl_[client_id]->drop_prob_);
   }
@@ -183,6 +186,8 @@ void* LaunchTxSendProbe(void* arg);
 void* LaunchTxHandleDataAck(void* arg);
 void* LaunchTxHandleRawAck(void* arg);
 void* LaunchTxRcvCell(void* arg);
+// @yijing: Update every 1s.
+void* LaunchUpdateLossRates(void* arg);
 
 /**
  * Print out the information about nack array.
