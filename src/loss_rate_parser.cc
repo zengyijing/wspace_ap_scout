@@ -15,3 +15,6 @@ void LossRateParser::ParseLine(const string &line) {
     loss_tbl[rate_arr[cnt-4]] = 
 }
 }
+
+void LossRateParser::UpdateLossRate() {
+  
