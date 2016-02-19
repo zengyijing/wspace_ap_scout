@@ -2,34 +2,29 @@
 #define LOSS_RATE_PARSER_H_
 
 #include <cassert>
+#include <fstream>
 #include <string>
-#include <unordered_map>
+#include <map>
+#include <queue>
+#include <vector>
+
+#include "base_rate.h"
 
 using namespace std;
 
 class LossRateParser {
  public:
-  typedef unordered_map<int, double> LossTable;
+  typedef vector<double> LossTable;
  
-  LossRateParser();
-  ~LossRateParser();
+  LossRateParser() {}
+  ~LossRateParser() {}
   
-  // <client_id, <bs_id, filename> >.
-  void ParseLossRates(const vector<int> &rate_arr, unordered_map<int, unordered_map<int, string> > &filename_tbl);
-  // @yijing: Pop queue for all the <client_id and bs_id>
-  // With lock.
-  void UpdateLossRate();
-  // @yijing: Get top of the queue.
-  // With lock.
-  double GetLossRate(int client_id, int bs_id);
+  void ParseLossRates(const string &filename);
+  void ParseLine(const string &line);
+  LossTable GetNextLossRates();
 
  private:
-  void ParseLossRates(const string &filename);
-  void Lock();
-  void UnLock();
-    
-  unordered_map<int, unordered_map<int, queue<LossTable> > > loss_tbl_;  // <client_id, <bs_id, loss_table> >.
-  pthread_mutex_t lock_;
+  queue<LossTable> loss_queue_;
 };
 
 #endif

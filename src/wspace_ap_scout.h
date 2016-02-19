@@ -8,6 +8,10 @@
 #include "fec.h"
 #include "rate_adaptation.h"
 #include "scout_rate.h"
+#ifdef RAND_DROP
+#include "pthread_wrapper.h"
+#include "loss_rate_parser.h"
+#endif
 
 static const int kMaxDupAckCnt = 10;
 //static const int kMaxContiguousTimeOut = 5;
@@ -23,10 +27,19 @@ class ClientContext {
                    expect_raw_ack_seq_(1), data_ack_loss_cnt_(0),
                    prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {
 #ifdef RAND_DROP
-    drop_prob_ = 0;
+    use_trace_file_ = false;
+    Pthread_mutex_init(&lock_, NULL);
+    for(int i = 0; i < mac80211abg_num_rates; ++i) {
+      drop_prob_[mac80211abg_rate[i]] = 0;
+    }
 #endif
   }
+
+#ifdef RAND_DROP
+  ~ClientContext() { Pthread_mutex_destroy(&lock_); }
+#else
   ~ClientContext() {}
+#endif
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
   CodeInfo* encoder() { return &encoder_; }
@@ -37,6 +50,12 @@ class ClientContext {
   pthread_t* p_tx_send_ath() { return &p_tx_send_ath_; }
   pthread_t* p_tx_handle_data_ack() { return &p_tx_handle_data_ack_; }
   pthread_t* p_tx_handle_raw_ack() { return &p_tx_handle_raw_ack_; }
+
+#ifdef RAND_DROP
+  pthread_t* p_tx_update_loss_rates() { return &p_tx_update_loss_rates_; }
+  void Lock() { Pthread_mutex_lock(&lock_); }
+  void UnLock() { Pthread_mutex_unlock(&lock_); }
+#endif
 
   //Former static variables needed by every client
   uint32 batch_id_; //= 1,
@@ -49,8 +68,11 @@ class ClientContext {
   int contiguous_time_out_;
   uint32 bsstats_seq_;
 #ifdef RAND_DROP 
-  int drop_prob_;  // drop probability in percentage
+  map<int, double> drop_prob_;  // drop probability in percentage
+  LossRateParser loss_rate_parser_;
+  bool use_trace_file_;
 #endif
+
  private:
   TxDataBuf data_pkt_buf_;
   CodeInfo encoder_;
@@ -58,7 +80,11 @@ class ClientContext {
   AckContext data_ack_context_;
   FeedbackHandler feedback_handler_;
   GPSLogger gps_logger_;
-  pthread_t  p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
+  pthread_t p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
+#ifdef RAND_DROP 
+  pthread_t p_tx_update_loss_rates_;
+  pthread_mutex_t lock_;    /** Lock is needed because the drop_prob_ is accessed by two threads. */
+#endif
 };
 
 class WspaceAP {
@@ -103,11 +129,13 @@ class WspaceAP {
 #endif
 
 #ifdef RAND_DROP
-  // @yijing: implement it in .cc and call loss_rate_parser.GetNextLossRate.
   void* UpdateLossRates(void* arg);
 
-  bool IsDrop(int client_id) {
-    return (rand() % 100 < client_context_tbl_[client_id]->drop_prob_);
+  bool IsDrop(int client_id, uint16 rate) {
+    client_context_tbl_[client_id]->Lock();
+    bool drop = (rand() % 100) /100.0 < client_context_tbl_[client_id]->drop_prob_[rate];
+    client_context_tbl_[client_id]->UnLock();
+    return drop;
   }
 
   bool IsDrop(int cnt, const int *inds, int ind) {
@@ -122,7 +150,7 @@ class WspaceAP {
    * Note: If inds != NULL, it's the caller's job to free the 
    * allocated memory pointed by inds.
    */
-  void GetDropInds(int *drop_cnt, int **inds, int client_id);
+  //void GetDropInds(int *drop_cnt, int **inds, int client_id);
 #endif
 
   void ParseIP(const vector<int> &ids, map<int, string> &ip_table);
@@ -150,8 +178,6 @@ class WspaceAP {
 
   vector<int> client_ids_;
   int bs_id_;
-
-
 
  private:
   /**
@@ -186,9 +212,9 @@ void* LaunchTxSendProbe(void* arg);
 void* LaunchTxHandleDataAck(void* arg);
 void* LaunchTxHandleRawAck(void* arg);
 void* LaunchTxRcvCell(void* arg);
-// @yijing: Update every 1s.
+#ifdef RAND_DROP
 void* LaunchUpdateLossRates(void* arg);
-
+#endif
 /**
  * Print out the information about nack array.
  */
