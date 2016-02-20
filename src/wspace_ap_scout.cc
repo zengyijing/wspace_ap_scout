@@ -29,11 +29,10 @@ int main(int argc, char **argv) {
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_send_ath(), NULL, LaunchTxSendAth, &(*it));
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack(), NULL, LaunchTxHandleRawAck, &(*it));
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack(), NULL, LaunchTxHandleDataAck, &(*it));
-#ifdef RAND_DROP
-    if (wspace_ap->client_context_tbl_[*it]->use_trace_file_)
-      Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_update_loss_rates(), NULL, LaunchUpdateLossRates, &(*it));
-#endif
   }
+#ifdef RAND_DROP
+  Pthread_create(&wspace_ap->p_tx_update_loss_rates_, NULL, LaunchUpdateLossRates, NULL);
+#endif
 
   Pthread_join(wspace_ap->p_tx_read_tun_, NULL);
   Pthread_join(wspace_ap->p_tx_rcv_cell_, NULL);
@@ -42,12 +41,10 @@ int main(int argc, char **argv) {
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_send_ath()), NULL);
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack()), NULL);
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack()), NULL);
-#ifdef RAND_DROP
-    if (wspace_ap->client_context_tbl_[*it]->use_trace_file_)
-      Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_update_loss_rates()), NULL);
-#endif
   }
-
+#ifdef RAND_DROP
+  Pthread_join(wspace_ap->p_tx_update_loss_rates_, NULL);
+#endif
   delete wspace_ap;
   return 0;
 }
@@ -55,6 +52,9 @@ int main(int argc, char **argv) {
 WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring) 
     : num_retrans_(0), coherence_time_(0), max_contiguous_time_out_(5),
       probe_pkt_size_(10), probing_interval_(1000000) {
+#ifdef RAND_DROP
+  use_trace_file_ = false;
+#endif
   int option;
   uint16 rate;
   bool use_fec = true;
@@ -184,39 +184,32 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
         stringstream ss(optarg);
-        vector<int>::iterator it = client_ids_.begin();
-        int count = 1;
+        vector<double> loss;
         while(getline(ss, s, ',')) {
-          if(count > client_context_tbl_.size())
+          if(loss.size() >= client_context_tbl_.size())
             Perror("Too many random drop probability.\n");
           double p = atof(s.c_str());
           if(p > 1 || p < 0)
             Perror("Invalid random drop probability.\n");
-          client_context_tbl_[*it]->use_trace_file_ = false;
-          for(int i = 0; i < mac80211abg_num_rates; ++i) {
-            client_context_tbl_[*it]->drop_prob_[mac80211abg_rate[i]] = p;
-          }
           printf("Packet corrupt probability: %3f\n", p);
-          ++it;
-          ++count;
+          loss.push_back(p);
         }
+        packet_drop_manager_.ParseLossRates(loss, client_ids_);
         break;
       }
       case 'D': {
         if ( client_ids_.size() == 0 )
           Perror("Need to set client ids before setting drop ratio trace file of client_context_tbl_\n");
+        use_trace_file_ = true;
         string s;
         stringstream ss(optarg);
-        vector<int>::iterator it = client_ids_.begin();
-        int count = 1;
+        vector<string> input_files;
         while(getline(ss, s, ',')) {
-          if(count > client_context_tbl_.size())
+          if(input_files.size() >= client_context_tbl_.size())
             Perror("Too many input files.\n");
-          client_context_tbl_[*it]->use_trace_file_ = true;
-          client_context_tbl_[*it]->loss_rate_parser_.ParseLossRates(s);
-          ++it;
-          ++count;
+          input_files.push_back(s);
         }
+        packet_drop_manager_.ParseLossRates(input_files, client_ids_);
         break;
       }
 #endif
@@ -981,16 +974,8 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 
 #ifdef RAND_DROP
 void* WspaceAP::UpdateLossRates(void* arg) {
-  int *client_id = (int*)arg;
   while (true) {
-    vector<double> loss_rate = client_context_tbl_[*client_id]->loss_rate_parser_.GetNextLossRates();
-    assert(loss_rate.size() == mac80211abg_num_rates);
-    int i = 0;
-    client_context_tbl_[*client_id]->Lock();
-    for (map<int, double>::iterator it = client_context_tbl_[*client_id]->drop_prob_.begin(); it != client_context_tbl_[*client_id]->drop_prob_.end(); ++it) {
-      it->second = loss_rate[i++];
-    }
-    client_context_tbl_[*client_id]->UnLock();
+    packet_drop_manager_.UpdateLossRates();
     sleep(1);
   }
 }

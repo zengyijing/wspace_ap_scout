@@ -9,8 +9,7 @@
 #include "rate_adaptation.h"
 #include "scout_rate.h"
 #ifdef RAND_DROP
-#include "pthread_wrapper.h"
-#include "loss_rate_parser.h"
+#include "packet_drop_manager.h"
 #endif
 
 static const int kMaxDupAckCnt = 10;
@@ -25,21 +24,9 @@ class ClientContext {
                    feedback_handler_(RAW_ACK), batch_id_(1), raw_seq_(1),
                    expect_data_ack_seq_(1), dup_data_ack_cnt_(0),
                    expect_raw_ack_seq_(1), data_ack_loss_cnt_(0),
-                   prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {
-#ifdef RAND_DROP
-    use_trace_file_ = false;
-    Pthread_mutex_init(&lock_, NULL);
-    for(int i = 0; i < mac80211abg_num_rates; ++i) {
-      drop_prob_[mac80211abg_rate[i]] = 0;
-    }
-#endif
-  }
+                   prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {}
 
-#ifdef RAND_DROP
-  ~ClientContext() { Pthread_mutex_destroy(&lock_); }
-#else
   ~ClientContext() {}
-#endif
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
   CodeInfo* encoder() { return &encoder_; }
@@ -51,12 +38,6 @@ class ClientContext {
   pthread_t* p_tx_handle_data_ack() { return &p_tx_handle_data_ack_; }
   pthread_t* p_tx_handle_raw_ack() { return &p_tx_handle_raw_ack_; }
 
-#ifdef RAND_DROP
-  pthread_t* p_tx_update_loss_rates() { return &p_tx_update_loss_rates_; }
-  void Lock() { Pthread_mutex_lock(&lock_); }
-  void UnLock() { Pthread_mutex_unlock(&lock_); }
-#endif
-
   //Former static variables needed by every client
   uint32 batch_id_; //= 1,
   uint32 raw_seq_; //= 1;
@@ -67,11 +48,6 @@ class ClientContext {
   uint32 prev_gps_seq_; // = 0;
   int contiguous_time_out_;
   uint32 bsstats_seq_;
-#ifdef RAND_DROP 
-  map<int, double> drop_prob_;  // drop probability in percentage
-  LossRateParser loss_rate_parser_;
-  bool use_trace_file_;
-#endif
 
  private:
   TxDataBuf data_pkt_buf_;
@@ -81,10 +57,7 @@ class ClientContext {
   FeedbackHandler feedback_handler_;
   GPSLogger gps_logger_;
   pthread_t p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
-#ifdef RAND_DROP 
-  pthread_t p_tx_update_loss_rates_;
-  pthread_mutex_t lock_;    /** Lock is needed because the drop_prob_ is accessed by two threads. */
-#endif
+
 };
 
 class WspaceAP {
@@ -132,9 +105,8 @@ class WspaceAP {
   void* UpdateLossRates(void* arg);
 
   bool IsDrop(int client_id, uint16 rate) {
-    client_context_tbl_[client_id]->Lock();
-    bool drop = (rand() % 100) /100.0 < client_context_tbl_[client_id]->drop_prob_[rate];
-    client_context_tbl_[client_id]->UnLock();
+    double loss_rate = packet_drop_manager_.GetLossRate(client_id, (int)rate);
+    bool drop = (rand() % 100) /100.0 < loss_rate;
     return drop;
   }
 
@@ -162,6 +134,11 @@ class WspaceAP {
   int rtt_;   // in ms
   //TxDataBuf data_pkt_buf_;  /** Store the data sequence number and data packets for retransmission.*/
   pthread_t p_tx_read_tun_, p_tx_rcv_cell_, p_tx_send_probe_;
+#ifdef RAND_DROP 
+  bool use_trace_file_;
+  pthread_t p_tx_update_loss_rates_;
+  PacketDropManager packet_drop_manager_;
+#endif
   Tun tun_;    // tun interface
   uint32 coherence_time_;  // in microseconds.
   //int contiguous_time_out_;
@@ -175,9 +152,9 @@ class WspaceAP {
   //GPSLogger gps_logger_;   /** Log the GPS readings.*/
   map<int, ClientContext*> client_context_tbl_;
 
-
   vector<int> client_ids_;
   int bs_id_;
+
 
  private:
   /**
