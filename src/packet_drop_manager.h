@@ -22,8 +22,8 @@ class PacketDropManager {
   
   void ParseLossRates(const vector<string> &filenames, const vector<int> &client_ids);
   void ParseLossRates(const vector<double> &loss_rates, const vector<int> &client_ids);
-  double GetLossRate(int client_id, int rate);
-  bool UpdateLossRates();
+  void GetLossRate(int client_id, int rate, double* loss_rate);
+  bool PopLossRates();
 
  private:
   LossTable ParseLine(const string line);
@@ -31,7 +31,6 @@ class PacketDropManager {
   void UnLock() { Pthread_mutex_unlock(&lock_); }
 
   vector<int32_t> rate_arr_;
-  bool use_trace_file_;
   map<int, queue<LossTable> > loss_queues_; // <client_id, queue>.
   pthread_mutex_t lock_; 
 };

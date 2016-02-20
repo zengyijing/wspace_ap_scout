@@ -1,6 +1,6 @@
 #include "packet_drop_manager.h"
 
-PacketDropManager::PacketDropManager(int32_t* rates, int size): use_trace_file_(false) {
+PacketDropManager::PacketDropManager(int32_t* rates, int size) {
   Pthread_mutex_init(&lock_, NULL);
   for (int i = 0; i < size; ++i) {
     rate_arr_.push_back(rates[i]);
@@ -13,16 +13,12 @@ PacketDropManager::~PacketDropManager() {
 
 void PacketDropManager::ParseLossRates(const vector<string> &filenames, const vector<int> &client_ids) {
   assert(filenames.size() == client_ids.size());
-  use_trace_file_ = true;
   for(int i = 0; i < client_ids.size(); ++i) {
     ifstream input(filenames[i].c_str());
     string line;
-    int line_count = 0;
     while(getline(input, line)) {
-      if(line_count++ > 0) {
-        LossTable table = ParseLine(line);
-        loss_queues_[client_ids[i]].push(table);
-      }
+      LossTable table = ParseLine(line);
+      loss_queues_[client_ids[i]].push(table);
     }
     printf("read from file %s lines:%d for client:%d\n", filenames[i].c_str(), loss_queues_[client_ids[i]].size(), client_ids[i]);
   }
@@ -59,29 +55,25 @@ map<int, double> PacketDropManager::ParseLine(const string line) {
   return table;
 }
 
-bool PacketDropManager::UpdateLossRates() {
-  bool successful_update = true;
-  if (use_trace_file_) {
-    Lock();
-    for (map<int, queue<LossTable> >::iterator it = loss_queues_.begin(); it != loss_queues_.end(); ++it) {
-      if (it->second.size() > 1) {
-        it->second.pop();
-      } else {
-        successful_update = false;
-      }
-    }
-    UnLock();
-  }
-  return successful_update;
-}
-
-double PacketDropManager::GetLossRate(int client_id, int rate) {
-  double loss_rate = 0;
+bool PacketDropManager::PopLossRates() {
+  bool successful_pop = true;
   Lock();
-  if(loss_queues_.count(client_id) > 0) {
-    assert(loss_queues_[client_id].front().count(rate) > 0);
-    loss_rate = loss_queues_[client_id].front()[rate];
+  for (map<int, queue<LossTable> >::iterator it = loss_queues_.begin(); it != loss_queues_.end(); ++it) {
+    if (!it->second.empty()) {
+      it->second.pop();
+    } else {
+      successful_pop = false;
+    }
   }
   UnLock();
-  return loss_rate;
+  return successful_pop;
+}
+
+void PacketDropManager::GetLossRate(int client_id, int rate, double* loss_rate) {
+  Lock();
+  if(loss_queues_.count(client_id) > 0 && !loss_queues_[client_id].empty()) {
+    assert(loss_queues_[client_id].front().count(rate) > 0);
+    *loss_rate = loss_queues_[client_id].front()[rate];
+  }
+  UnLock();
 }

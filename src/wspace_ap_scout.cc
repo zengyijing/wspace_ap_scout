@@ -31,7 +31,9 @@ int main(int argc, char **argv) {
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack(), NULL, LaunchTxHandleDataAck, &(*it));
   }
 #ifdef RAND_DROP
-  Pthread_create(&wspace_ap->p_tx_update_loss_rates_, NULL, LaunchUpdateLossRates, NULL);
+  if (wspace_ap->use_loss_trace_) {
+    Pthread_create(&wspace_ap->p_tx_update_loss_rates_, NULL, LaunchUpdateLossRates, NULL);
+  }
 #endif
 
   Pthread_join(wspace_ap->p_tx_read_tun_, NULL);
@@ -43,7 +45,9 @@ int main(int argc, char **argv) {
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack()), NULL);
   }
 #ifdef RAND_DROP
-  Pthread_join(wspace_ap->p_tx_update_loss_rates_, NULL);
+  if (wspace_ap->use_loss_trace_) {
+    Pthread_join(wspace_ap->p_tx_update_loss_rates_, NULL);
+  }
 #endif
   delete wspace_ap;
   return 0;
@@ -978,17 +982,18 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 void* WspaceAP::UpdateLossRates(void* arg) {
   sleep(1);
   while (true) {
-    if (packet_drop_manager_->UpdateLossRates()) {
-      sleep(1);
-    } else {
+    if (!packet_drop_manager_->PopLossRates()) {
       printf("current trace files has been gone over, exit\n");
       assert(false);
     }
+    sleep(1);
   }
 }
 
 bool WspaceAP::IsDrop(int client_id, uint16 rate) {
-  double loss_rate = packet_drop_manager_->GetLossRate(client_id, (int)rate);
+  double loss_rate = 0;
+  // if loss rate is not specified manually or read from a file, loss_rate = 0 is unchanged.
+  packet_drop_manager_->GetLossRate(client_id, (int)rate, &loss_rate);
   bool drop = rand() % 100 /100.0 < loss_rate;
   return drop;
 }
