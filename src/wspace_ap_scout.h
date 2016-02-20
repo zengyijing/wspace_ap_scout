@@ -104,12 +104,8 @@ class WspaceAP {
 #ifdef RAND_DROP
   void* UpdateLossRates(void* arg);
 
-  bool IsDrop(int client_id, uint16 rate) {
-    double loss_rate = packet_drop_manager_.GetLossRate(client_id, (int)rate);
-    bool drop = (rand() % 100) /100.0 < loss_rate;
-    return drop;
-  }
-
+  bool IsDrop(int client_id, uint16 rate);
+/*
   bool IsDrop(int cnt, const int *inds, int ind) {
     for (int i = 0; i < cnt; i++) {
       if (inds[i] == ind)
@@ -117,7 +113,7 @@ class WspaceAP {
     }
     return false;
   }
-
+*/
   /**
    * Note: If inds != NULL, it's the caller's job to free the 
    * allocated memory pointed by inds.
@@ -135,9 +131,9 @@ class WspaceAP {
   //TxDataBuf data_pkt_buf_;  /** Store the data sequence number and data packets for retransmission.*/
   pthread_t p_tx_read_tun_, p_tx_rcv_cell_, p_tx_send_probe_;
 #ifdef RAND_DROP 
-  bool use_trace_file_;
+  bool use_loss_trace_;
   pthread_t p_tx_update_loss_rates_;
-  PacketDropManager packet_drop_manager_;
+  PacketDropManager* packet_drop_manager_;
 #endif
   Tun tun_;    // tun interface
   uint32 coherence_time_;  // in microseconds.

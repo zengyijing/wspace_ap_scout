@@ -1,8 +1,10 @@
 #include "packet_drop_manager.h"
 
-PacketDropManager::PacketDropManager() {
-  use_trace_file_ = false;
+PacketDropManager::PacketDropManager(int32_t* rates, int size): use_trace_file_(false) {
   Pthread_mutex_init(&lock_, NULL);
+  for (int i = 0; i < size; ++i) {
+    rate_arr_.push_back(rates[i]);
+  }
 }
 
 PacketDropManager::~PacketDropManager() {
@@ -17,8 +19,10 @@ void PacketDropManager::ParseLossRates(const vector<string> &filenames, const ve
     string line;
     int line_count = 0;
     while(getline(input, line)) {
-      if(line_count++ > 0)
-        ParseLine(line, client_ids[i]);
+      if(line_count++ > 0) {
+        LossTable table = ParseLine(line);
+        loss_queues_[client_ids[i]].push(table);
+      }
     }
     printf("read from file %s lines:%d for client:%d\n", filenames[i].c_str(), loss_queues_[client_ids[i]].size(), client_ids[i]);
   }
@@ -29,14 +33,14 @@ void PacketDropManager::ParseLossRates(const vector<double> &loss_rates, const v
   assert(loss_rates.size() == client_ids.size());
   LossTable table;
   for (int i = 0; i < client_ids.size(); ++i) {
-    for (int j = 0; j < mac80211abg_num_rates; ++j) {
-     table[mac80211abg_rate[j]] = loss_rates[i];
+    for (int j = 0; j < rate_arr_.size(); ++j) {
+     table[rate_arr_[j]] = loss_rates[i];
     }
     loss_queues_[client_ids[i]].push(table);
   }
 }
 
-void PacketDropManager::ParseLine(const string &line, const int &client_id) {
+map<int, double> PacketDropManager::ParseLine(const string line) {
   stringstream ss(line);
   double loss = -1.0;
   int cnt = 0;
@@ -49,33 +53,32 @@ void PacketDropManager::ParseLine(const string &line, const int &client_id) {
     }
     loss = atof(s.c_str());
     assert(loss <= 1 && loss >= 0);
-    table[mac80211abg_rate[i++]] = loss;
+    table[rate_arr_[i++]] = loss;
   }
-  assert(cnt - 3 == mac80211abg_num_rates);
-  loss_queues_[client_id].push(table);
+  assert(cnt - 3 == rate_arr_.size());
+  return table;
 }
 
-void PacketDropManager::UpdateLossRates() {
+bool PacketDropManager::UpdateLossRates() {
+  bool successful_update = true;
   if (use_trace_file_) {
     Lock();
     for (map<int, queue<LossTable> >::iterator it = loss_queues_.begin(); it != loss_queues_.end(); ++it) {
       if (it->second.size() > 1) {
         it->second.pop();
       } else {
-        printf("current trace files has been gone over, exit\n");
-        assert(false);
+        successful_update = false;
       }
     }
     UnLock();
   }
+  return successful_update;
 }
 
-double PacketDropManager::GetLossRate(const int &client_id, const int &rate) {
+double PacketDropManager::GetLossRate(int client_id, int rate) {
   double loss_rate = 0;
   Lock();
   if(loss_queues_.count(client_id) > 0) {
-    if (loss_queues_[client_id].front().count(rate) == 0)
-      printf("input rate is :%d\n");
     assert(loss_queues_[client_id].front().count(rate) > 0);
     loss_rate = loss_queues_[client_id].front()[rate];
   }

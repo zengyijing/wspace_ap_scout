@@ -17,19 +17,21 @@ class PacketDropManager {
  public:
   typedef map<int, double> LossTable; // <rate, loss_rate>.
  
-  PacketDropManager();
+  PacketDropManager(int32_t* rates, int size);
   ~PacketDropManager();
   
   void ParseLossRates(const vector<string> &filenames, const vector<int> &client_ids);
   void ParseLossRates(const vector<double> &loss_rates, const vector<int> &client_ids);
-  double GetLossRate(const int &client_id, const int &rate);
-  void UpdateLossRates();
+  double GetLossRate(int client_id, int rate);
+  bool UpdateLossRates();
 
  private:
-  bool use_trace_file_;
+  LossTable ParseLine(const string line);
   void Lock() { Pthread_mutex_lock(&lock_); }
   void UnLock() { Pthread_mutex_unlock(&lock_); }
-  void ParseLine(const string &line, const int &client_id);
+
+  vector<int32_t> rate_arr_;
+  bool use_trace_file_;
   map<int, queue<LossTable> > loss_queues_; // <client_id, queue>.
   pthread_mutex_t lock_; 
 };

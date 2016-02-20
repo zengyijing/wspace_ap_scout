@@ -53,7 +53,8 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
     : num_retrans_(0), coherence_time_(0), max_contiguous_time_out_(5),
       probe_pkt_size_(10), probing_interval_(1000000) {
 #ifdef RAND_DROP
-  use_trace_file_ = false;
+  use_loss_trace_ = false;
+  packet_drop_manager_ = new PacketDropManager(mac80211abg_rate, mac80211abg_num_rates);
 #endif
   int option;
   uint16 rate;
@@ -186,21 +187,19 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         stringstream ss(optarg);
         vector<double> loss;
         while(getline(ss, s, ',')) {
-          if(loss.size() >= client_context_tbl_.size())
-            Perror("Too many random drop probability.\n");
           double p = atof(s.c_str());
           if(p > 1 || p < 0)
             Perror("Invalid random drop probability.\n");
           printf("Packet corrupt probability: %3f\n", p);
           loss.push_back(p);
         }
-        packet_drop_manager_.ParseLossRates(loss, client_ids_);
+        packet_drop_manager_->ParseLossRates(loss, client_ids_);
         break;
       }
       case 'D': {
         if ( client_ids_.size() == 0 )
           Perror("Need to set client ids before setting drop ratio trace file of client_context_tbl_\n");
-        use_trace_file_ = true;
+        use_loss_trace_ = true;
         string s;
         stringstream ss(optarg);
         vector<string> input_files;
@@ -209,7 +208,7 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
             Perror("Too many input files.\n");
           input_files.push_back(s);
         }
-        packet_drop_manager_.ParseLossRates(input_files, client_ids_);
+        packet_drop_manager_->ParseLossRates(input_files, client_ids_);
         break;
       }
 #endif
@@ -254,6 +253,9 @@ WspaceAP::~WspaceAP() {
   for (vector<int>::iterator it = client_ids_.begin(); it != client_ids_.end(); ++it) {
     delete client_context_tbl_[*it];
   }
+#ifdef RAND_DROP
+  delete packet_drop_manager_;
+#endif
 }
 
 void WspaceAP::Init() {
@@ -974,10 +976,21 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 
 #ifdef RAND_DROP
 void* WspaceAP::UpdateLossRates(void* arg) {
+  sleep(1);
   while (true) {
-    packet_drop_manager_.UpdateLossRates();
-    sleep(1);
+    if (packet_drop_manager_->UpdateLossRates()) {
+      sleep(1);
+    } else {
+      printf("current trace files has been gone over, exit\n");
+      assert(false);
+    }
   }
+}
+
+bool WspaceAP::IsDrop(int client_id, uint16 rate) {
+  double loss_rate = packet_drop_manager_->GetLossRate(client_id, (int)rate);
+  bool drop = rand() % 100 /100.0 < loss_rate;
+  return drop;
 }
 
 /*
