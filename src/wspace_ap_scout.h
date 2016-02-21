@@ -9,6 +9,10 @@
 #include "rate_adaptation.h"
 #include "scout_rate.h"
 
+#ifdef RAND_DROP
+#include "packet_drop_manager.h"
+#endif
+
 static const int kMaxDupAckCnt = 10;
 //static const int kMaxContiguousTimeOut = 5;
 
@@ -21,11 +25,8 @@ class ClientContext {
                    feedback_handler_(RAW_ACK), batch_id_(1), raw_seq_(1),
                    expect_data_ack_seq_(1), dup_data_ack_cnt_(0),
                    expect_raw_ack_seq_(1), data_ack_loss_cnt_(0),
-                   prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {
-#ifdef RAND_DROP
-    drop_prob_ = 0;
-#endif
-  }
+                   prev_gps_seq_(0), contiguous_time_out_(0), bsstats_seq_(0) {}
+
   ~ClientContext() {}
 
   TxDataBuf* data_pkt_buf() { return &data_pkt_buf_; }
@@ -48,9 +49,7 @@ class ClientContext {
   uint32 prev_gps_seq_; // = 0;
   int contiguous_time_out_;
   uint32 bsstats_seq_;
-#ifdef RAND_DROP 
-  int drop_prob_;  // drop probability in percentage
-#endif
+
  private:
   TxDataBuf data_pkt_buf_;
   CodeInfo encoder_;
@@ -58,7 +57,8 @@ class ClientContext {
   AckContext data_ack_context_;
   FeedbackHandler feedback_handler_;
   GPSLogger gps_logger_;
-  pthread_t  p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
+  pthread_t p_tx_send_ath_, p_tx_handle_data_ack_, p_tx_handle_raw_ack_;
+
 };
 
 class WspaceAP {
@@ -103,10 +103,10 @@ class WspaceAP {
 #endif
 
 #ifdef RAND_DROP
-  bool IsDrop(int client_id) {
-    return (rand() % 100 < client_context_tbl_[client_id]->drop_prob_);
-  }
+  void* UpdateLossRates(void* arg);
 
+  bool IsDrop(int client_id, uint16 rate);
+/*
   bool IsDrop(int cnt, const int *inds, int ind) {
     for (int i = 0; i < cnt; i++) {
       if (inds[i] == ind)
@@ -114,12 +114,12 @@ class WspaceAP {
     }
     return false;
   }
-
+*/
   /**
    * Note: If inds != NULL, it's the caller's job to free the 
    * allocated memory pointed by inds.
    */
-  void GetDropInds(int *drop_cnt, int **inds, int client_id);
+  //void GetDropInds(int *drop_cnt, int **inds, int client_id);
 #endif
 
   void ParseIP(const vector<int> &ids, map<int, string> &ip_table);
@@ -131,6 +131,11 @@ class WspaceAP {
   int rtt_;   // in ms
   //TxDataBuf data_pkt_buf_;  /** Store the data sequence number and data packets for retransmission.*/
   pthread_t p_tx_read_tun_, p_tx_rcv_cell_, p_tx_send_probe_;
+#ifdef RAND_DROP 
+  bool use_loss_trace_;
+  pthread_t p_tx_update_loss_rates_;
+  PacketDropManager* packet_drop_manager_;
+#endif
   Tun tun_;    // tun interface
   uint32 coherence_time_;  // in microseconds.
   //int contiguous_time_out_;
@@ -144,10 +149,8 @@ class WspaceAP {
   //GPSLogger gps_logger_;   /** Log the GPS readings.*/
   map<int, ClientContext*> client_context_tbl_;
 
-
   vector<int> client_ids_;
   int bs_id_;
-
 
 
  private:
@@ -183,7 +186,9 @@ void* LaunchTxSendProbe(void* arg);
 void* LaunchTxHandleDataAck(void* arg);
 void* LaunchTxHandleRawAck(void* arg);
 void* LaunchTxRcvCell(void* arg);
-
+#ifdef RAND_DROP
+void* LaunchUpdateLossRates(void* arg);
+#endif
 /**
  * Print out the information about nack array.
  */

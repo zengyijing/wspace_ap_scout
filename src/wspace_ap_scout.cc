@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
   printf("sizeof(CellDataHeader):%d\n", sizeof(CellDataHeader));
   printf("sizeof(double):%d\n",sizeof(double));
   printf("sizeof(int):%d\n",sizeof(int));
-  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:V:v:m:M:O:f:n:o:F:";
+  const char* opts = "r:R:t:T:i:I:S:s:C:c:P:p:r:B:b:d:D:V:v:m:M:O:f:n:o:F:";
   wspace_ap = new WspaceAP(argc, argv, opts);
   wspace_ap->Init();
 
@@ -30,6 +30,11 @@ int main(int argc, char **argv) {
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack(), NULL, LaunchTxHandleRawAck, &(*it));
     Pthread_create(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack(), NULL, LaunchTxHandleDataAck, &(*it));
   }
+#ifdef RAND_DROP
+  if (wspace_ap->use_loss_trace_) {
+    Pthread_create(&wspace_ap->p_tx_update_loss_rates_, NULL, LaunchUpdateLossRates, NULL);
+  }
+#endif
 
   Pthread_join(wspace_ap->p_tx_read_tun_, NULL);
   Pthread_join(wspace_ap->p_tx_rcv_cell_, NULL);
@@ -39,7 +44,11 @@ int main(int argc, char **argv) {
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_raw_ack()), NULL);
     Pthread_join(*(wspace_ap->client_context_tbl_[*it]->p_tx_handle_data_ack()), NULL);
   }
-
+#ifdef RAND_DROP
+  if (wspace_ap->use_loss_trace_) {
+    Pthread_join(wspace_ap->p_tx_update_loss_rates_, NULL);
+  }
+#endif
   delete wspace_ap;
   return 0;
 }
@@ -47,6 +56,10 @@ int main(int argc, char **argv) {
 WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring) 
     : num_retrans_(0), coherence_time_(0), max_contiguous_time_out_(5),
       probe_pkt_size_(10), probing_interval_(1000000) {
+#ifdef RAND_DROP
+  use_loss_trace_ = false;
+  packet_drop_manager_ = new PacketDropManager(mac80211abg_rate, mac80211abg_num_rates);
+#endif
   int option;
   uint16 rate;
   bool use_fec = true;
@@ -176,19 +189,30 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
           Perror("Need to set client ids before setting drop_prob_ of client_context_tbl_\n");
         string s;
         stringstream ss(optarg);
-        vector<int>::iterator it = client_ids_.begin();
-        int count = 1;
+        vector<double> loss;
         while(getline(ss, s, ',')) {
-          if(count > client_context_tbl_.size())
-            Perror("Too many random drop probability.\n");
-          int p = atoi(s.c_str());
-          if(p > 100 || p < 0)
+          double p = atof(s.c_str());
+          if(p > 1 || p < 0)
             Perror("Invalid random drop probability.\n");
-          client_context_tbl_[*it]->drop_prob_ = p;
-          printf("Packet corrupt probability: %d\n", p);
-          ++it;
-          ++count;
+          printf("Packet corrupt probability: %3f\n", p);
+          loss.push_back(p);
         }
+        packet_drop_manager_->ParseLossRates(loss, client_ids_);
+        break;
+      }
+      case 'D': {
+        if ( client_ids_.size() == 0 )
+          Perror("Need to set client ids before setting drop ratio trace file of client_context_tbl_\n");
+        use_loss_trace_ = true;
+        string s;
+        stringstream ss(optarg);
+        vector<string> input_files;
+        while(getline(ss, s, ',')) {
+          if(input_files.size() >= client_context_tbl_.size())
+            Perror("Too many input files.\n");
+          input_files.push_back(s);
+        }
+        packet_drop_manager_->ParseLossRates(input_files, client_ids_);
         break;
       }
 #endif
@@ -233,6 +257,9 @@ WspaceAP::~WspaceAP() {
   for (vector<int>::iterator it = client_ids_.begin(); it != client_ids_.end(); ++it) {
     delete client_context_tbl_[*it];
   }
+#ifdef RAND_DROP
+  delete packet_drop_manager_;
+#endif
 }
 
 void WspaceAP::Init() {
@@ -330,7 +357,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
 */
 
 #ifdef RAND_DROP
-    if (IsDrop(client_id) /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
+    if (IsDrop(client_id, rate) /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
     //if (IsDrop(drop_cnt, drop_inds, j)) {
       hdr->set_is_good(false); /*
       printf("Bad pkt: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());*/
@@ -449,12 +476,15 @@ void* WspaceAP::TxSendAth(void* arg) {
         assert(coding_pkt_cnt > 0);
         client_context_tbl_[*client_id]->encoder()->EncodeBatch();
 #ifdef RAND_DROP
+/*
         int drop_cnt, *drop_inds;
         GetDropInds(&drop_cnt, &drop_inds, *client_id);
         //printf("drop_cnt: %d\n", drop_cnt);
         SendCodedBatch(kExtraWaitTime, is_duplicate_cell, rate_arr, *client_id, drop_cnt, drop_inds);
         if (drop_inds)
           delete[] drop_inds;
+*/
+        SendCodedBatch(kExtraWaitTime, is_duplicate_cell, rate_arr, *client_id);
 #else
         SendCodedBatch(kExtraWaitTime, is_duplicate_cell, rate_arr, *client_id);
 #endif
@@ -949,9 +979,31 @@ void WspaceAP::RcvGPS(const char* buf, uint16 len, int client_id) {
 }
 
 #ifdef RAND_DROP
+void* WspaceAP::UpdateLossRates(void* arg) {
+  sleep(1);
+  while (true) {
+    if (!packet_drop_manager_->PopLossRates()) {
+      printf("WspaceAP::UpdateLossRates:Running out of data in packet loss trace.\n");
+      assert(false);
+    }
+    sleep(1);
+  }
+}
+
+bool WspaceAP::IsDrop(int client_id, uint16 rate) {
+  double loss_rate = 0;
+  if( packet_drop_manager_->GetLossRate(client_id, (int)rate, &loss_rate)) {
+    bool drop = rand() % 100 /100.0 < loss_rate;
+    return drop;
+  } else {
+    return false;
+  }
+}
+
+/*
 void WspaceAP::GetDropInds(int *drop_cnt, int **inds, int client_id) {
   int n = client_context_tbl_[client_id]->encoder()->n();
-  *drop_cnt = ceil(n * client_context_tbl_[client_id]->drop_prob_/100.);
+  *drop_cnt = ceil(n * client_context_tbl_[client_id]->drop_prob_);
   int rand_ind=-1;
   if (*drop_cnt == 0) {
     *inds = NULL;
@@ -966,6 +1018,10 @@ void WspaceAP::GetDropInds(int *drop_cnt, int **inds, int client_id) {
     }
     *inds = ind_arr;
   }
+}
+*/
+void* LaunchUpdateLossRates(void* arg) {
+  wspace_ap->UpdateLossRates(arg);
 }
 #endif
 

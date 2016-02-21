@@ -5,7 +5,7 @@
 LIBS = -lpthread -lrt
 all: wspace_ap_scout
 
-wspace_ap_scout: wspace_ap_scout.o wspace_asym_util.o time_util.o tun.o \
+wspace_ap_scout: wspace_ap_scout.o wspace_asym_util.o time_util.o tun.o  packet_drop_manager.o\
 fec.o feedback_records.o monotonic_timer.o rate_adaptation.o sample_rate.o robust_rate.o scout_rate.o
 	$(CXX) $(CXXFLAGS) $^ -o wspace_ap_scout $(LIBS)
 
