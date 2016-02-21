@@ -8,6 +8,7 @@
 #include "fec.h"
 #include "rate_adaptation.h"
 #include "scout_rate.h"
+
 #ifdef RAND_DROP
 #include "packet_drop_manager.h"
 #endif
