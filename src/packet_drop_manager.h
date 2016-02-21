@@ -22,7 +22,7 @@ class PacketDropManager {
   
   void ParseLossRates(const vector<string> &filenames, const vector<int> &client_ids);
   void ParseLossRates(const vector<double> &loss_rates, const vector<int> &client_ids);
-  void GetLossRate(int client_id, int rate, double* loss_rate);
+  bool GetLossRate(int client_id, int rate, double* loss_rate);
   bool PopLossRates();
 
  private:

@@ -983,7 +983,7 @@ void* WspaceAP::UpdateLossRates(void* arg) {
   sleep(1);
   while (true) {
     if (!packet_drop_manager_->PopLossRates()) {
-      printf("current trace files has been gone over, exit\n");
+      printf("WspaceAP::UpdateLossRates:Running out of data in packet loss trace.\n");
       assert(false);
     }
     sleep(1);
@@ -992,10 +992,12 @@ void* WspaceAP::UpdateLossRates(void* arg) {
 
 bool WspaceAP::IsDrop(int client_id, uint16 rate) {
   double loss_rate = 0;
-  // if loss rate is not specified manually or read from a file, loss_rate = 0 is unchanged.
-  packet_drop_manager_->GetLossRate(client_id, (int)rate, &loss_rate);
-  bool drop = rand() % 100 /100.0 < loss_rate;
-  return drop;
+  if( packet_drop_manager_->GetLossRate(client_id, (int)rate, &loss_rate)) {
+    bool drop = rand() % 100 /100.0 < loss_rate;
+    return drop;
+  } else {
+    return false;
+  }
 }
 
 /*

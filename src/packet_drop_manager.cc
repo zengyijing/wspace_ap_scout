@@ -69,11 +69,14 @@ bool PacketDropManager::PopLossRates() {
   return successful_pop;
 }
 
-void PacketDropManager::GetLossRate(int client_id, int rate, double* loss_rate) {
+bool PacketDropManager::GetLossRate(int client_id, int rate, double* loss_rate) {
+  bool get_loss = false;
   Lock();
   if(loss_queues_.count(client_id) > 0 && !loss_queues_[client_id].empty()) {
     assert(loss_queues_[client_id].front().count(rate) > 0);
     *loss_rate = loss_queues_[client_id].front()[rate];
+    get_loss = true;
   }
   UnLock();
+  return get_loss;
 }
