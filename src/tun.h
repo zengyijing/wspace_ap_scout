@@ -59,7 +59,7 @@ class Tun {
   void BindSocket(int fd, sockaddr_in *addr);
   void CreateAddr(const char *ip, int port, sockaddr_in *addr);
   uint16_t Read(const IOType &type, char *buf, uint16_t len);
-  uint16_t Write(const IOType &type, char *buf, uint16_t len, int client_id);
+  uint16_t Write(const IOType &type, char *buf, uint16_t len, int client_id = 0);
 
 // Data members:
   int tun_fd_;

@@ -298,7 +298,7 @@ void WspaceAP::SendLossRate(int client_id) {
   }
   BSStatsPkt pkt;
   pkt.Init(++client_context_tbl_[client_id]->bsstats_seq_, bs_id_, client_id, throughput);
-  tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt), 0);
+  tun_.Write(Tun::kControl, (char *)&pkt, sizeof(pkt));
 }
 
 
@@ -368,7 +368,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
     printf("Send: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());*/
 #endif
     //printf("send_len: %d\n", send_len);
-    tun_.Write(Tun::kWspace, (char*)hdr, send_len, 0);
+    tun_.Write(Tun::kWspace, (char*)hdr, send_len);
     //not_drop = false;
 
     /** Flow control.*/
@@ -923,7 +923,7 @@ void* WspaceAP::TxRcvCell(void* arg) {
     nread = tun_.Read(Tun::kCellular, buf, PKT_SIZE);
     char type = *buf;
     if (type == CELL_DATA) {
-      tun_.Write(Tun::kControl, buf, nread, 0);
+      tun_.Write(Tun::kControl, buf, nread);
     }
     else if (type == DATA_ACK) {
       AckHeader *hdr = (AckHeader*)buf;
