@@ -233,9 +233,11 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
       case 'o': {
         probe_pkt_size_ = atoi(optarg);
         assert(probe_pkt_size_ < PKT_SIZE);
+        break;
       }
       case 'F': {
         probing_interval_ = atoi(optarg);
+        break;
       }
       default:
         Perror("Usage: %s -i tun0/tap0 -S server_eth_ip -s server_ath_ip -C client_eth_ip -c client_ath_ip -m tcp/udp\n", argv[0]);
