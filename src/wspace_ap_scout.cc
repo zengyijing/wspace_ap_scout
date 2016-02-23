@@ -136,7 +136,6 @@ WspaceAP::WspaceAP(int argc, char *argv[], const char *optstring)
         break;
       case 'p':
         tun_.port_ath_ = atoi(optarg);
-        
         break;
       case 'B':
         batch_time_out_ = atoi(optarg);
@@ -344,17 +343,16 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
     client_context_tbl_[client_id]->feedback_handler()->raw_pkt_buf_.PushPktStatus(status_vec, status);
     InsertFeedback(status_vec, client_id);
 
-    // Assume no cellular duplication
-/*
+
     if (is_duplicate && j < client_context_tbl_[client_id]->encoder()->k()) { // only duplicate data packets + 1 redundant packet.
 #ifdef RAND_DROP
       hdr->set_is_good(true);
 #endif
-      tun_.Write(Tun::kCellular, (char*)hdr, send_len);
+      tun_.Write(Tun::kCellular, (char*)hdr, send_len, client_id);/*
       printf("Duplicate: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u\n", 
-      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);
+      client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);*/
     }
-*/
+
 
 #ifdef RAND_DROP
     if (IsDrop(client_id, rate) /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
