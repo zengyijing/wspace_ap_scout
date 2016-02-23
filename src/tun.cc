@@ -65,6 +65,10 @@ void Tun::InitSock() {
   CreateAddr(server_ip_eth_, port_eth_, &server_addr_eth_);   
   CreateAddr(server_ip_ath_, port_ath_, &server_addr_ath_);   
 
+  // Create client side address
+  for(map<int, string>::iterator it = client_ip_tbl_.begin(); it != client_ip_tbl_.end(); ++it) {
+    CreateAddr(it->second.c_str(), PORT_ETH, &client_addr_eth_tbl_[it->first]);
+  }
 
   CreateAddr(controller_ip_eth_, port_eth_, &controller_addr_eth_); 
 
@@ -122,20 +126,22 @@ uint16_t Tun::Read(const IOType &type, char *buf, uint16_t len) {
   return nread;
 }
 
-uint16_t Tun::Write(const IOType &type, char *buf, uint16_t len) {
+uint16_t Tun::Write(const IOType &type, char *buf, uint16_t len, int client_id) {
   uint16_t nwrite=-1;
   assert(len > 0);
   socklen_t addr_len = sizeof(struct sockaddr_in);
-  if (type == kTun)
+  if (type == kTun) {
     nwrite = cwrite(tun_fd_, buf, len);
-  //else if (type == kCellular) // Assume no cellular duplication.
-    //nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&client_addr_eth_, addr_len);
-
-  else if (type == kControl)
+  }
+  else if (type == kCellular) {
+    nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&client_addr_eth_tbl_[client_id], addr_len);
+  }
+  else if (type == kControl) {
     nwrite = sendto(sock_fd_eth_, buf, len, 0, (struct sockaddr*)&controller_addr_eth_, addr_len);
-
-  else if (type == kWspace)
+  }
+  else if (type == kWspace) {
     nwrite = sendto(sock_fd_ath_, buf, len, 0, (struct sockaddr*)&client_addr_ath_, addr_len);
+  }
   assert(nwrite == len);
   return nwrite;
 }

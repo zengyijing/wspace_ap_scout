@@ -59,7 +59,7 @@ class Tun {
   void BindSocket(int fd, sockaddr_in *addr);
   void CreateAddr(const char *ip, int port, sockaddr_in *addr);
   uint16_t Read(const IOType &type, char *buf, uint16_t len);
-  uint16_t Write(const IOType &type, char *buf, uint16_t len);
+  uint16_t Write(const IOType &type, char *buf, uint16_t len, int client_id);
 
 // Data members:
   int tun_fd_;
@@ -72,7 +72,8 @@ class Tun {
   uint16_t port_eth_, port_ath_;
   int sock_fd_eth_, sock_fd_ath_;       // Sockets to handle request at the server side
 
-  std::map<int, string> client_ip_tbl_; // <client_id, client_ip_eth_>.
+  map<int, string> client_ip_tbl_; // <client_id, client_ip_eth_>.
+  map<int, struct sockaddr_in> client_addr_eth_tbl_;
   char controller_ip_eth_[16];
   struct sockaddr_in controller_addr_eth_;
 };

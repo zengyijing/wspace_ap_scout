@@ -318,7 +318,7 @@ void ScoutRateAdaptation::CalcLossRatesAfterCombine() {
 bool ScoutRateAdaptation::IsHighLoss() {
   double loss = loss_map_combine_.GetLossRate(rate_);
   bool is_duplicate = (loss > duplicate_thresh());
-  printf("IsHighLoss: rate[%u] loss[%g] thresh[%g] is_dup[%d]\n", rate_, loss, duplicate_thresh(), (int)is_duplicate);
+  //printf("IsHighLoss: rate[%u] loss[%g] thresh[%g] is_dup[%d]\n", rate_, loss, duplicate_thresh(), (int)is_duplicate);
   /** This would only happen to the lowest data rate as we won't choose a higher rate with loss > 0.65.*/
   //if (is_duplicate) assert(rate_ == rate_arr_[0]);  
   return is_duplicate;
