@@ -294,7 +294,7 @@ void WspaceAP::SendLossRate(int client_id) {
     if(loss_rate == INVALID_LOSS_RATE)
       continue;
     th = mac80211abg_rate[i] * (1 - loss_rate) / 10.0;
-    //printf("mac80211abg_rate[%d], loss_rate:%d\n", mac80211abg_rate[i], loss_rate);
+    //printf("mac80211abg_rate[%d], loss_rate:%3f\n", mac80211abg_rate[i], loss_rate);
     if(th > throughput)
       throughput = th;
   }
