@@ -684,7 +684,7 @@ bool WspaceAP::HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32
     }
     if (nack_cnt != num_nacks) {
       PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_arr);
-      printf("nack_cnt:%d, num_nacks:%d\n", nack_cnt, num_nacks);
+      printf("client_id:%d, nack_cnt:%d, num_nacks:%d\n", client_id, nack_cnt, num_nacks);
     }
     assert(nack_cnt == num_nacks);
   }
