@@ -360,11 +360,11 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
     if (IsDrop(client_id, rate) /*|| ((hdr->raw_seq() > 20000 && hdr->raw_seq() < 20040) || (hdr->raw_seq() > 20050 && hdr->raw_seq() < 25000))*/) { 
     //if (IsDrop(drop_cnt, drop_inds, j)) {
       hdr->set_is_good(false); 
-      printf("Bad pkt: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      printf("Bad pkt: client_id: %d raw_seq_: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
     else { 
       hdr->set_is_good(true); 
-      printf("Good pkt: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
+      printf("Good pkt: client_id: %d raw_seq_: %u batch_id: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());
     }
 #else /*
     printf("Send: client_context_tbl_[%d]->raw_seq_: %u client_context_tbl_[%d]->batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u rate: %u\n", client_id, hdr->raw_seq(), client_id, hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len, hdr->GetRate());*/
@@ -558,7 +558,7 @@ bool WspaceAP::HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32
   }
 #endif
 
-  //PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_arr);
+  PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_arr);
 
   if (end_seq-1 < head_pt) {  // dup ack
     //printf("DUP ACK end_seq[%u] head_pt[%u]\n", end_seq, head_pt);
@@ -683,8 +683,8 @@ bool WspaceAP::HandleDataAck(char type, uint32 ack_seq, uint16 num_nacks, uint32
       client_context_tbl_[client_id]->data_pkt_buf()->UnLockElement(index_mod);
     }
     if (nack_cnt != num_nacks) {
-      PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_arr);
-      printf("WARNING: client_id:%d, nack_cnt:%d, num_nacks:%d\n", client_id, nack_cnt, num_nacks);
+      //PrintNackInfo(type, ack_seq, num_nacks, end_seq, nack_arr);
+      printf("WARNING: HandleDataAck client_id[%d] nack_cnt[%d] != num_nacks[%d]\n", client_id, nack_cnt, num_nacks);
     }
     //assert(nack_cnt == num_nacks);
   }
@@ -945,7 +945,7 @@ void* WspaceAP::TxRcvCell(void* arg) {
     }
     else if (type == CONTROLLER_TO_CLIENT) {
       ControllerToClientHeader* hdr = (ControllerToClientHeader*)buf;
-      printf("Received a CONTROLLER_TO_CLIENT pkt from controller, to client:%d\n", hdr->client_id());
+      printf("CONTROLLER_TO_CLIENT pkt client_id: %d seq_num: %u len: %u\n", hdr->client_id(), hdr->o_seq(), nread);
       client_context_tbl_[hdr->client_id()]->data_pkt_buf()->EnqueuePkt(nread, (uint8*)buf);
     }
     else {
@@ -988,11 +988,13 @@ void* WspaceAP::UpdateLossRates(void* arg) {
   sleep(1);
   while (true) {
     for(vector<int>::iterator it = client_ids_.begin(); it != client_ids_.end(); ++it) {
+      printf("UpdateLossRate::client[%d]: ", *it);
       for(int i = 0; i < mac80211abg_num_rates; ++i) {
         double loss = 0;
         packet_drop_manager_->GetLossRate(*it, mac80211abg_rate[i], &loss);
-        printf("client:%d, rate:%d, loss:%3f\n", *it, mac80211abg_rate[i], loss);
+        printf("%3f ", loss);
       }
+      printf("\n");
     }
     if (!packet_drop_manager_->PopLossRates()) {
       printf("WspaceAP::UpdateLossRates:Running out of data in packet loss trace.\n");
