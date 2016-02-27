@@ -651,6 +651,7 @@ class BSStatsPkt {
 
   void Init(uint32 seq, int bs_id, int client_id, double throughput);
   void ParsePkt(uint32 *seq, int *bs_id, int *client_id, double *throughput) const;
+  void Print() const;
   
   char type_; 
   uint32 seq_;  
