@@ -163,7 +163,7 @@ void ScoutRateAdaptation::MakeDecision(TransmitMode transmit_mode, uint32_t cohe
   else
     is_duplicate = false;
 
-  printf("MakeDecision: is_duplicate %d, IsHighLoss:%d, transmit_mode:%d, IsBootstrapping():%d\n", (int)is_duplicate, (int)IsHighLoss(), (int)transmit_mode, (int)IsBootstrapping());
+  //printf("MakeDecision: is_duplicate %d, IsHighLoss:%d, transmit_mode:%d, IsBootstrapping():%d\n", (int)is_duplicate, (int)IsHighLoss(), (int)transmit_mode, (int)IsBootstrapping());
 
   //printf("MakeDecision: enable_duplicate[%d] high_loss[%d] transmit_mode[%d]\n", 
   //enable_duplicate(), IsHighLoss(), transmit_mode);
@@ -320,7 +320,7 @@ void ScoutRateAdaptation::CalcLossRatesAfterCombine() {
 bool ScoutRateAdaptation::IsHighLoss() {
   double loss = loss_map_combine_.GetLossRate(rate_);
   bool is_duplicate = (loss > duplicate_thresh());
-  printf("IsHighLoss: rate[%u] loss[%g] thresh[%g] is_dup[%d]\n", rate_, loss, duplicate_thresh(), (int)is_duplicate);
+  //printf("IsHighLoss: rate[%u] loss[%g] thresh[%g] is_dup[%d]\n", rate_, loss, duplicate_thresh(), (int)is_duplicate);
   /** This would only happen to the lowest data rate as we won't choose a higher rate with loss > 0.65.*/
   //if (is_duplicate) assert(rate_ == rate_arr_[0]);  
   return is_duplicate;

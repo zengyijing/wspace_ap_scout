@@ -27,7 +27,7 @@ Purpose: Enqueue an element in the tail
 bool BasicBuf::AcquireTailLock(uint32 *index) {
   LockQueue();
   if (IsFull()) {
-    printf("Drop pkt due to queue is full!\n");
+    //printf("Drop pkt due to queue is full!\n");
     UnLockQueue();
     return false;
   }
