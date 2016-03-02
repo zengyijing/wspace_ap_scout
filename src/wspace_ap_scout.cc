@@ -352,7 +352,7 @@ void WspaceAP::SendCodedBatch(uint32 extra_wait_time, bool is_duplicate, const v
 #ifdef RAND_DROP
       hdr->set_is_good(true);
 #endif
-      tun_.Write(Tun::kCellular, (char*)hdr, send_len, client_id);/*
+      tun_.Write(Tun::kControl, (char*)hdr, send_len, client_id);/*
       printf("Duplicate: client_id %d pkt_type:%d raw_seq_: %u batch_id_: %u seq_num: %u start_seq: %u coding_index: %d length: %u\n", 
       client_id, (char*)hdr->GetPayloadStart()[0], hdr->raw_seq(), hdr->batch_id(), hdr->start_seq_ + hdr->ind_, hdr->start_seq_, hdr->ind_, send_len);*/
     }

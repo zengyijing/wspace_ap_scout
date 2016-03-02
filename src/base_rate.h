@@ -17,7 +17,7 @@
 
 static int32_t mac80211b_rate[] = {10,20,55,110};
 static int32_t mac80211ag_rate[] = {60, 90, 120, 180, 240, 360, 480, 540};
-static int32_t mac80211abg_rate[] = {10, 20, 55, 60, 90, 110, 120, 180, 240, 360, 480, 540};
+static int32_t mac80211abg_rate[] = {10, 20, 55, 60, 90, 110, 120, 180, 240};//, 360, 480, 540};
 static int32_t mac80211abg_num_rates = sizeof(mac80211abg_rate)/sizeof(mac80211abg_rate[0]);
 
 //static int32_t loss_rates[12] = {0, 10, 0, 10, 0, 10, 100, 0, 100, 100, 0, 100}; 

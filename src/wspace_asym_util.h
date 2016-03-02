@@ -19,7 +19,7 @@
 #include "feedback_records.h"
 
 /* Parameter to be tuned */
-#define BUF_SIZE 5000
+#define BUF_SIZE 500
 #define PKT_SIZE 1472
 #define ACK_WINDOW 720
 #define MAX_BATCH_SIZE 10
@@ -440,6 +440,9 @@ class AthHeader {
 #endif
 
   void set_bs_id(int bs_id) { bs_id_ = bs_id; }
+  int bs_id() { return bs_id_; }
+  void set_client_id(int client_id) { client_id_ = client_id; }
+  int client_id() { return client_id_; }
 // Data
   char type_;
   uint32 raw_seq_;
